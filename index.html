@@ -93,8 +93,8 @@
     </div></section>
 
     <section class="panel"><h2>実際に動ける支援者</h2><p class="lead">家族の有無ではなく、誰が・何を・どの頻度で・いつまでできるかを整理します。</p><div class="grid three">
-      <div class="field"><label for="supporter">主な支援者</label><select id="supporter"><option>いない</option><option>配偶者</option><option>子・子の配偶者</option><option>兄弟姉妹・親族</option><option>友人・近隣者</option><option>複数いる</option></select></div>
-      <div class="field"><label for="distance">居住距離</label><select id="distance"><option>該当なし</option><option>同居</option><option>近隣</option><option>同一市区町村内</option><option>遠方</option></select></div>
+      <div class="field"><label for="supporter">主な支援者</label><select id="supporter"><option>いない</option><option>配偶者</option><option>子・子の配偶者</option><option>兄弟姉妹・親族</option><option>友人・近隣者</option><option>支援専門職・支援機関</option><option>複数いる</option></select></div>
+      <div class="field"><label for="distance">支援者の居住地・活動拠点</label><select id="distance"><option>該当なし</option><option>同居</option><option>近隣</option><option>同一市区町村内</option><option>遠方</option></select><div class="small">家族・知人は居住地、支援専門職・支援機関は事業所所在地・担当区域・活動拠点として選択します。</div></div>
       <div class="field"><label for="supportFrequency">実働頻度</label><select id="supportFrequency"><option>支援なし</option><option>ほぼ毎日</option><option>週2～3回</option><option>週1回程度</option><option>月数回</option><option>必要時のみ</option><option>ほぼ困難</option></select></div>
       <div class="field"><label for="continuity">継続可能性</label><select id="continuity"><option>該当なし</option><option>継続可能</option><option>負担が大きい</option><option>近く継続困難</option><option>すでに困難</option></select></div>
       <div class="field"><label for="supporterBarrier">支援者側の制約</label><select id="supporterBarrier"><option>該当なし・特になし</option><option>高齢</option><option>就労</option><option>育児・他の介護</option><option>病気・障害</option><option>遠距離</option><option>関係性・意思の問題</option><option>複数あり</option></select></div>
@@ -120,13 +120,13 @@
       <div class="hidden" aria-hidden="true"><textarea id="researchAnswer"></textarea><button id="buildWritingPromptBtn" type="button"></button><textarea id="writingPrompt"></textarea><button id="copyWritingBtn" type="button" disabled></button></div></div>
     <p class="hint">共有端末へ保存したテキストファイルは、使用後にダウンロードフォルダから削除してください。</p><div id="copyStatus" class="status" aria-live="polite"></div></section>
 </main>
-<footer>公開評価版 4.9　架空症例専用です。実患者情報を用いる運用は対象外であり、公開利用者の入力内容やAI回答を作成者・公開者が収集することはありません。<br>Copyright (c) 2026 Hiromasa Akimoto　—　MIT License</footer>
+<footer>公開評価版 4.10　架空症例専用です。実患者情報を用いる運用は対象外であり、公開利用者の入力内容やAI回答を作成者・公開者が収集することはありません。<br>Copyright (c) 2026 Hiromasa Akimoto　—　MIT License</footer>
 <script>
   'use strict';
   const $=id=>document.getElementById(id), val=id=>$(id).value;
   function updateStartGate(){const ready=$('useRulesConfirm').checked;$('inputGate').disabled=!ready;$('inputGate').classList.toggle('hidden',!ready);$('startGateStatus').textContent=ready?'利用条件への同意を確認しました。症例条件の入力欄を表示しています。':'上記の利用条件への同意後、症例条件の入力欄を表示します。';$('startGateStatus').style.color=ready?'var(--ok)':''}
   $('useRulesConfirm').addEventListener('change',updateStartGate);updateStartGate();
-  const labels={userType:'入力者',desiredRoute:'希望する使い方',personWish:'本人の希望',age:'年齢帯・16特定疾病との関係',municipality:'居住市区町村',living:'世帯',careLevel:'要介護認定',careManager:'相談窓口',disability:'障害者手帳等',publicAssistance:'公的扶助の状況',dialysisType:'腎代替療法',frequency:'透析通院頻度',transport:'現在の主な送迎',doorToCar:'玄関から車両まで',boarding:'車両への乗降',postDialysis:'透析後の状態',transportStability:'送迎手段の継続性',wheelchair:'移動機器',escort:'院内付き添い',mobility:'屋内移動',transfer:'立ち上がり・移乗',stairs:'階段',toileting:'排泄',bathing:'入浴・清潔',dressing:'更衣',communication:'意思伝達',decision:'日常の意思決定',cognition:'認知・行動',meal:'食事・調理',medication:'服薬管理',money:'金銭・手続き',housing:'住宅種別',barrier:'住宅上の障壁',monitoring:'見守り・孤立',economy:'経済状況',work:'就労',urgency:'在宅継続の緊急度',supporter:'主な支援者',distance:'支援者の居住距離',supportFrequency:'実働頻度',continuity:'支援者の継続可能性',supporterBarrier:'支援者側の制約'};
+  const labels={userType:'入力者',desiredRoute:'希望する使い方',personWish:'本人の希望',age:'年齢帯・16特定疾病との関係',municipality:'居住市区町村',living:'世帯',careLevel:'要介護認定',careManager:'相談窓口',disability:'障害者手帳等',publicAssistance:'公的扶助の状況',dialysisType:'腎代替療法',frequency:'透析通院頻度',transport:'現在の主な送迎',doorToCar:'玄関から車両まで',boarding:'車両への乗降',postDialysis:'透析後の状態',transportStability:'送迎手段の継続性',wheelchair:'移動機器',escort:'院内付き添い',mobility:'屋内移動',transfer:'立ち上がり・移乗',stairs:'階段',toileting:'排泄',bathing:'入浴・清潔',dressing:'更衣',communication:'意思伝達',decision:'日常の意思決定',cognition:'認知・行動',meal:'食事・調理',medication:'服薬管理',money:'金銭・手続き',housing:'住宅種別',barrier:'住宅上の障壁',monitoring:'見守り・孤立',economy:'経済状況',work:'就労',urgency:'在宅継続の緊急度',supporter:'主な支援者',distance:'支援者の居住地・活動拠点',supportFrequency:'実働頻度',continuity:'支援者の継続可能性',supporterBarrier:'支援者側の制約'};
   const checked=id=>[...$(id).querySelectorAll('input:checked')].map(x=>x.value);
   const line=id=>`- ${labels[id]}：${val(id)}`;
   const conditionIds=()=>Object.keys(labels);
@@ -154,8 +154,8 @@
   function buildWritingPrompt(answer){const originalConditions=conditionLines();return `あなたは、介護保険・障害福祉・自治体制度に詳しくない透析クリニックスタッフ向けの編集者です。以下の第1段階の調査結果だけを根拠に、本人・家族と次の行動を相談できる文章へ整理してください。\n\n【厳守】\n- 第1段階にない制度名、数値、URL、電話番号、所在地、対象条件、医学的事実を追加しない。\n- URLと問い合わせ先は一字も変更せず転記する。\n- 「AIの自己申告」と「人による確認」を区別し、人の確認欄は未チェックのまま残す。\n- 第一候補と代替候補を合わせた優先候補は本文全体で8件以内、本文は参照一覧を除き6000字以内とする。\n- 専門用語は初出時に日常語で説明し、略称には対応表を付ける。\n- 入力不一致は必要な場合だけ一度示し、入力者を責めたり緊急性を誇張したりしない。確認した不整合は、その後の各節で繰り返し言及しない。\n- 本人の身体状況・生活状況は元の入力表現を保ち、入力にない医学的原因や重症度へ言い換えない。\n- 回答の最後に「J. 元の質問アンケート結果」を置き、下記の【元の質問アンケート結果】を一字も要約・修正・並べ替えせず、そのまま複写する。これにより、AI回答と元の入力条件を1つのファイルで検証できるようにする。\n- J節は入力内容の照合用であり、患者・家族への説明には使用しない。J節は6000字の本文上限には含めない。\n\n【出力】\nA. 現在の状況と優先して確認すること（3点以内）\nB. 今すぐ検討する制度・サービス候補\nC. 短期・中期の組み合わせ案\nD. 次に確認する質問（最大5問）\nE. 相談・申請の順序と担当候補\nF. 介護保険申請の具体的な進め方\nG. 注意点・最終確認先\nH. 参照URL一覧と人による確認欄\nI. 略称対応表\nJ. 元の質問アンケート結果（下記をそのまま複写）\n\n【第1段階の調査結果】\n${answer}\n\n【元の質問アンケート結果】\n${originalConditions}`}
   const buildResearchPromptCore=buildResearchPrompt;
   buildResearchPrompt=function(){return `${buildResearchPromptCore()}\n\n【重要な入力不一致の扱い】\n- 細かな違和感を大量に列挙しない。制度候補、安全性、治療継続または最初の相談先を変える不一致だけを、回答冒頭で一度、短く確認する。\n- 特に、腎代替療法と通院・送迎、世帯と支援者の居住、移動能力と移動機器、要介護度と日常生活動作に大きな開きがある場合を確認する。\n- 不一致があっても回答全体を止めない。確認前後で候補が変わる場合だけ条件付きで説明し、同じ不一致を後の節で繰り返さない。\n\n【読みやすさと長さ】\n- 第一候補と代替候補を合わせた優先候補は8件以内とする。A～G節は合計4500字以内とし、H・I・J節はこの上限に含めない。\n- 同じ説明を複数の節で繰り返さない。B節の各候補は「何をする支援か／この人に関係する理由／利用前の確認／最初の連絡先」を原則5行以内でまとめる。C～G節ではB節の説明を再掲せず、候補番号を参照して次の行動だけを示す。\n\n【最終出力の厳守事項】\n- 検索語、検索中の判断、作業経過、ツール使用状況、下書き、独り言は表示せず、調査完了後の最終回答だけを出力する。\n- 回答の最初に独立した見出し「まずやること」を必ず置き、3点以内で短く示す。A章へ統合したり省略したりしない。\n- 参照番号は本文で最初に使用した順に[1]から始め、欠番のない連番にする。検索結果やAIシステムが付けた別形式の引用番号・リンク表記を混在させず、この参照番号だけを使う。`}
-  const buildResearchPromptV49=buildResearchPrompt;
-  buildResearchPrompt=function(){return `${buildResearchPromptV49()}\n\n【指示が重なる場合の優先順位】\n文字数について上部に6000字以内との記載があっても、後から示した「A～G節は合計4500字以内」を優先してください。`}
+  const buildResearchPromptV410=buildResearchPrompt;
+  buildResearchPrompt=function(){return `${buildResearchPromptV410()}\n\n【実働支援者の解釈】\n- 「主な支援者」が「支援専門職・支援機関」の場合、それを家族・親族とみなさず、世帯・家族構成とは別の実働支援者として扱う。\n- 「支援者の居住地・活動拠点」は、家族・知人については居住地、支援専門職・支援機関については事業所所在地、担当区域または活動拠点として解釈する。具体的に可能な支援は「実際にできる支援」、頻度および継続可能性を基に判断する。\n\n【回答環境の記録】\n- 「まずやること」の直後、A章の前に、独立した見出し「回答環境」を置き、次の4項目を回答する。\n  - AI製品・サービス名：\n  - モデル名またはタイプ：\n  - Web検索機能の使用状況：\n  - 回答作成日：\n- 回答環境は、回答を作成しているAI自身が把握できる範囲で記載する。モデル名・版などを確認できない場合は「不明」とし、推測しない。利用者による確認作業は求めない。\n\n【指示が重なる場合の優先順位】\n文字数について上部に6000字以内との記載があっても、後から示した「A～G節は合計4500字以内」を優先してください。`}
   async function copyText(id,message){try{await navigator.clipboard.writeText($(id).value)}catch(_){$(id).select();document.execCommand('copy')}$('copyStatus').className='status ok';$('copyStatus').textContent=message}
   $('notes').addEventListener('input',()=>{$('noteCount').textContent=$('notes').value.length;const h=safeCheck();$('piiStatus').className=h.length?'status bad':'status';$('piiStatus').textContent=h.length?`個人情報の可能性を検出：${h.join('、')}。削除してから生成してください。`:'';});
   function updatePiiAiButton(){const confirmed=$('privacyConfirm').checked;$('piiAiArea').classList.toggle('hidden',!confirmed);$('piiAiCheckBtn').disabled=!confirmed||!val('notes').trim()}
@@ -173,6 +173,7 @@
     let attempts=0;
     do{document.querySelectorAll('#caseForm select').forEach(select=>setRandomSelect(select.id));setRandomSelect('desiredRoute',['AIチャットで調べてからクリニックへ相談したい','クリニック職員がAIチャットで候補を調べたい']);attempts+=1}while(consistencyIssues().length&&attempts<50);
     $('municipality').value=randomItem(municipalities);
+    if(val('supporter')==='支援専門職・支援機関')$('distance').value='同一市区町村内';
     setRandomChecks('supportTasks',4);
     const serviceInputs=[...$('services').querySelectorAll('input')];
     serviceInputs.forEach(input=>input.checked=false);
