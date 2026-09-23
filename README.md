@@ -137,7 +137,7 @@ HTMLから外部AIへ自動送信する機能はない。AIチャットへの貼
 
 ## 使い方
 
-1. [`dialysis_social_resource_support.html`](./dialysis_social_resource_support.html) をダウンロードする。
+1. [`index.html`](./index.html) をダウンロードする。
 2. WebブラウザでHTMLファイルを開く。
 3. 利用条件を読み、同意欄をチェックする。
 4. 人工的な架空症例を入力する。試験を簡略化する場合は、ランダム架空症例生成機能を使用できる。
@@ -324,7 +324,7 @@ GitHub版の公開
 
 ## 関連ファイル
 
-- [`dialysis_social_resource_support.html`](./dialysis_social_resource_support.html)：公開評価版ツール本体
+- [`index.html`](./index.html)：公開評価版ツール本体
 - [`docs/development-log.md`](./docs/development-log.md)：架空症例試験で確認された問題、対策、設計判断の日時付き開発ログ
 
 ## 参考資料
