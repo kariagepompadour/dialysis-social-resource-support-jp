@@ -140,7 +140,7 @@
     </div>
     <p class="hint">共有端末へ保存したテキストファイルは、使用後にダウンロードフォルダから削除してください。</p><div id="copyStatus" class="status" aria-live="polite"></div></section>
 </main>
-<footer>公開評価版 4.29　架空症例専用です。実患者情報を用いる運用は対象外であり、公開利用者の入力内容やAI回答を作成者・公開者が収集することはありません。<br>Copyright (c) 2026 Hiromasa Akimoto　—　MIT License</footer>
+<footer>公開評価版 4.29.2　架空症例専用です。実患者情報を用いる運用は対象外であり、公開利用者の入力内容やAI回答を作成者・公開者が収集することはありません。<br>Copyright (c) 2026 Hiromasa Akimoto　—　MIT License</footer>
 <script>
   'use strict';
   const $=id=>document.getElementById(id), val=id=>$(id).value;
@@ -190,7 +190,7 @@
     const issues=consistencyIssues();
     const toolIssues=issues.length?issues.map(x=>`- ${x}`).join('\n'):'なし';
     const staffFacing=val('userType')==='クリニック職員'||val('desiredRoute')==='クリニック職員がAIチャットで候補を調べたい';
-    const selfFacing=val('userType')==='患者本人';
+    const selfFacing=!staffFacing&&val('userType')==='患者本人';
     // Design decision: patient/family-facing output keeps a simplified provider-side section instead of removing it entirely.
     // Rationale: certificates/documents that should be shown to the dialysis facility are useful bridging information, while detailed claims-processing information is omitted.
     const readerBlock=staffFacing
@@ -198,7 +198,7 @@
       :`この回答の読者は、透析患者本人または家族・支援者等で、制度の専門家ではありません。クリニックや相談窓口へ持参して相談する前提で整理してください。医療機関側の専門的な請求経路は説明せず、患者・家族が透析施設へ提示・確認を依頼すべき資格情報・受給者証・公費等だけを簡潔に示してください。`;
     const intentRule=selfFacing
       ?`R-7【本人の意向】本人の希望が「情報だけ知りたい」「支援を希望していない」の場合も、制度・社会資源の探索と情報提示は止めない。申請、事業者・機関への連絡、情報共有を進めるかは本人が決めるものとして書き、Aの1点目は「相談・申請を進めるかは本人が決める」とする。本人自身を読者としているため、「本人の意向を確認する」と本人へ求める表現は使わない。`
-      :`${intentRule}`;
+      :`R-7【本人の意向】本人の希望が「情報だけ知りたい」「支援を希望していない」「本人の意向をまだ確認できていない」の場合も、制度・社会資源の探索と情報提示は止めない。ただし同意済みとは扱わない。申請、事業者・機関への連絡、情報共有を伴う行動は「本人の意向確認後」と条件を付けて書き、Aの1点目を本人の意向確認とする。`;
     const intentAction=selfFacing
       ?`R-7に該当する場合は1点目を「相談・申請を進めるかは本人が決める」とする。`
       :`R-7に該当する場合は1点目を本人の意向確認とする。`;
