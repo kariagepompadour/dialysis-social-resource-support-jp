@@ -1,0 +1,12 @@
+{
+  "name": "dialysis-social-resource-support-jp",
+  "private": true,
+  "description": "透析患者 社会資源探索支援ツール（単一HTML）のリリース前回帰テスト",
+  "scripts": {
+    "test": "node tests/regression.test.js index.html",
+    "test:quick": "node tests/regression.test.js index.html --random 100",
+    "test:verbose": "node tests/regression.test.js index.html --verbose"
+  },
+  "engines": { "node": ">=18" },
+  "devDependencies": { "jsdom": "^24.1.3" }
+}

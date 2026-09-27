@@ -1,0 +1,383 @@
+#!/usr/bin/env node
+/*
+ * 透析患者 社会資源探索支援ツール — リリース前回帰テスト
+ *
+ * 使い方:
+ *   npm test                                   # index.html を対象に全テスト
+ *   node tests/regression.test.js path/to/index.html --random 600 --seed 20260928
+ *
+ * 目的:
+ *   構文チェック（node --check）では検出できない「特定の分岐でだけ起きる実行時例外」と、
+ *   読者／0-B／R-7／自己監査⑦などの分岐異常、安全ルール文の脱落を、実際にHTMLを動かして検出する。
+ *
+ * 期待値（SPEC）は実装から読み取らず、このファイルに仕様として固定している。
+ * プロンプト文言を「意図的に」変更したときは、SPEC の該当文字列も同時に更新すること。
+ * SPEC を更新せずにテストが落ちた場合は、意図しない文言変更・脱落の可能性がある。
+ */
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const { JSDOM, VirtualConsole } = require('jsdom');
+
+// ───────────────────────── 引数 ─────────────────────────
+const args = process.argv.slice(2);
+const opt = (name, def) => { const i = args.indexOf(name); return i >= 0 ? args[i + 1] : def; };
+const HTML_PATH = path.resolve(args.find(a => !a.startsWith('--') && !/^\d+$/.test(a)) || 'index.html');
+const RANDOM_N = Number(opt('--random', 600));
+const SEED = Number(opt('--seed', 20260928));
+const VERBOSE = args.includes('--verbose');
+
+// ───────────────────────── 仕様（期待値） ─────────────────────────
+const V = {
+  staffUser: 'クリニック職員',
+  selfUser: '患者本人',
+  staffRoute: 'クリニック職員がAIチャットで候補を調べたい',
+  unknown: 'わからない・未入力',
+};
+const SPEC = {
+  terminator: '以上で指示は終わりです。',
+  reader: {
+    staff: 'この回答の読者は、介護・福祉制度を専門としない透析クリニック職員です。',
+    nonStaff: 'この回答の読者は、透析患者本人または家族・支援者等で、制度の専門家ではありません。',
+  },
+  zeroB: { staff: '0-B 医療機関側（最大5行', nonStaff: '0-B 医療機関に確認してもらうこと（最大5行' },
+  audit7: { staff: '⑦主体の区別：', nonStaff: '⑦医療機関への確認：' },
+  r7: {
+    self: ['相談・申請を進めるかは本人が決める', '本人自身を読者としているため'],
+    other: [
+      '「情報だけ知りたい」「支援を希望していない」「本人の意向をまだ確認できていない」の場合も',
+      'ただし同意済みとは扱わない。',
+      '「本人の意向確認後」と条件を付けて書き',
+      'Aの1点目を本人の意向確認とする。',
+    ],
+  },
+  aAction: {
+    self: 'R-7に該当する場合は1点目を「相談・申請を進めるかは本人が決める」とする。',
+    other: 'R-7に該当する場合は1点目を本人の意向確認とする。',
+  },
+  // どの分岐でも必ず含まれるべき安全ルール・構造（脱落検出用）
+  required: [
+    '第1部は、第2部以降のすべての指示（出力形式、字数、候補数、網羅性）より優先します。',
+    'R-1【根拠】', 'R-2【入力にない事実を作らない】', 'R-3【欠測の扱い】', 'R-4【AIが判定しないこと】',
+    'R-5【金額】', 'R-6【本人の状況の表現】', 'R-7【本人の意向】', 'R-8【検索できない場合】',
+    'その証の対象疾病名・対象障害・認定理由・所得区分は、入力に書かれていない限り「入力なし」として扱う。',
+    '(c) 入力された「在宅継続の緊急度」を、別の区分へ上書き・再判定しない。',
+    '住民税の「課税／非課税」の入力だけでは所得区分が確定しない制度では、区分未確定として扱う。',
+    '- 特定疾病の区別：',
+    'それをAI独自の「緊急度」「緊急性」として表現しない。',
+    '▼症例データ開始', '【ツールが入力時に表示した整合性の指摘】', '【元の質問アンケート結果】', '▲症例データ終了',
+    'S1【検索軸の抽出】', 'S6【確認できない場合】',
+    '0-0. 入力の要点', 'H. 参照URL一覧と人による確認欄', 'AI自己監査記録（AIの自己申告）',
+    'J. 元の質問アンケート結果',
+    '「検証済み」とは書かない。',
+  ],
+  forbidden: [/undefined/, /\$\{/, /\[object /, /NaN/],
+  // 誤検出してはいけない一般的な補足文
+  piiShouldPass: [
+    '週3回透析。第2号被保険者か確認したい。', '透析クリニックと総合病院の連携で順番待ち。週3-4回の送迎が必要。',
+    '受給者番号は分からない。', '家族送迎が来月頃に終了予定。', '階段は3段ある', '１日2回の服薬確認',
+    '朝9時30分に送迎', 'バス停まで300m', '年金は月8万円程度',
+  ],
+  // 必ず停止すべき補足文
+  piiShouldBlock: [
+    '連絡先は090-1234-5678', 'メール test@example.com', '住所は王子1丁目2番3号', '氏名：テスト',
+    '患者ID: A12345', '昭和20年3月4日生まれ',
+  ],
+  municipalityShouldPass: ['東京都北区', '北海道札幌市中央区', '京都府京都市上京区', '大阪府堺市北区', '長野県下伊那郡阿智村'],
+};
+
+// ───────────────────────── 基盤 ─────────────────────────
+const HTML = fs.readFileSync(HTML_PATH, 'utf8');
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+function openPage(seed = SEED) {
+  const errors = [];
+  const vc = new VirtualConsole();
+  vc.on('jsdomError', e => { const m = String(e && e.message || e); if (!/Not implemented: (window\.scrollTo|window\.print)/.test(m)) errors.push(m); });
+  vc.on('error', e => errors.push('console.error: ' + e));
+  const dom = new JSDOM(HTML, {
+    runScripts: 'dangerously', pretendToBeVisual: true, virtualConsole: vc, url: 'https://example.test/',
+    beforeParse(w) {
+      w.Math.random = mulberry32(seed);
+      w.HTMLElement.prototype.scrollIntoView = function () {};
+      w.scrollTo = () => {}; w.print = () => { w.__printed = true; };
+      w.confirm = () => true; w.alert = () => {};
+      w.__clip = null; w.navigator.clipboard = { writeText: async t => { w.__clip = t; } };
+      w.document.execCommand = () => true;
+      w.__downloads = []; w.URL.createObjectURL = b => { w.__downloads.push(b); return 'blob:test'; }; w.URL.revokeObjectURL = () => {};
+      w.HTMLAnchorElement.prototype.click = function () {};
+      if (!w.Blob.prototype.text) w.Blob.prototype.text = function () { return new Promise((res, rej) => { const r = new w.FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsText(this); }); };
+      w.addEventListener('error', e => errors.push('window.error: ' + e.message));
+      w.addEventListener('unhandledrejection', e => errors.push('unhandledrejection: ' + (e.reason && e.reason.message || e.reason)));
+    },
+  });
+  const w = dom.window, d = w.document, $ = id => d.getElementById(id);
+  const fire = (el, type) => el.dispatchEvent(new w.Event(type, { bubbles: true }));
+  const page = {
+    w, d, $, errors,
+    options: id => [...$(id).options].map(o => o.value),
+    set(id, v) { const el = $(id); el.value = v; if (el.value !== v) throw new Error(`選択肢がありません: ${id}=${v}`); fire(el, 'change'); },
+    text(id, v) { $(id).value = v; fire($(id), 'input'); },
+    consent() { $('useRulesConfirm').checked = true; fire($('useRulesConfirm'), 'change'); },
+    confirmAll({ consistency = false } = {}) {
+      $('privacyConfirm').checked = true; fire($('privacyConfirm'), 'change');
+      if (consistency) { $('consistencyConfirm').checked = true; fire($('consistencyConfirm'), 'change'); }
+    },
+    submit() { const f = $('caseForm'); if (f.requestSubmit) f.requestSubmit(); else f.dispatchEvent(new w.Event('submit', { cancelable: true })); },
+    prompt: () => $('researchPrompt').value,
+    memo: () => $('clinicMemo').value,
+    status: () => $('piiStatus').textContent,
+    close: () => w.close(),
+  };
+  return page;
+}
+
+// ───────────────────────── 結果集計 ─────────────────────────
+const results = [];
+function record(suite, name, failures) {
+  results.push({ suite, name, failures });
+  if (VERBOSE || failures.length) console.log(`${failures.length ? '  ✗' : '  ✓'} [${suite}] ${name}${failures.length ? '\n      - ' + failures.join('\n      - ') : ''}`);
+}
+function expectedBranch(userType, route) {
+  const staff = userType === V.staffUser || route === V.staffRoute;
+  const self = !staff && userType === V.selfUser;
+  return { staff, self };
+}
+
+// 生成された相談文を仕様に照らして検査する。失敗理由の配列を返す。
+function checkPrompt(p, { staff, self }, page) {
+  const f = [];
+  if (!p) return ['相談文が生成されていない'];
+  if (!p.trimEnd().endsWith(SPEC.terminator)) f.push('末尾が終端文で終わっていない（途中切断の可能性）');
+  for (const re of SPEC.forbidden) if (re.test(p)) f.push(`禁止パターン混入: ${re}`);
+  for (const s of SPEC.required) if (!p.includes(s)) f.push(`必須文の欠落: ${s}`);
+  if ((p.match(/R-7【本人の意向】/g) || []).length !== 1) f.push('R-7 が1回ではない');
+
+  const has = s => p.includes(s);
+  if (has(SPEC.reader.staff) !== staff || has(SPEC.reader.nonStaff) !== !staff) f.push(`読者分岐の異常（期待: ${staff ? '職員' : '本人・家族'}）`);
+  if (has(SPEC.zeroB.staff) !== staff || has(SPEC.zeroB.nonStaff) !== !staff) f.push(`0-B分岐の異常（期待: ${staff ? '職員版' : '簡略版'}）`);
+  if (has(SPEC.audit7.staff) !== staff || has(SPEC.audit7.nonStaff) !== !staff) f.push(`自己監査⑦分岐の異常（期待: ${staff ? '主体の区別' : '医療機関への確認'}）`);
+  const selfR7 = SPEC.r7.self.every(has), anySelfR7 = SPEC.r7.self.some(has);
+  const otherR7 = SPEC.r7.other.every(has), anyOtherR7 = SPEC.r7.other.some(has);
+  if (self && (!selfR7 || anyOtherR7)) f.push('R-7分岐の異常（期待: 本人向け）');
+  if (!self && (!otherR7 || anySelfR7)) f.push('R-7分岐の異常（期待: 家族・支援者・職員向け。意向未確認・意向確認後の条件を含むこと）');
+  if (has(SPEC.aAction.self) !== self || has(SPEC.aAction.other) !== !self) f.push('A節の1点目指示の分岐異常');
+
+  // 元の症例条件が区切りの内側に丸ごと入っているか（J節の材料）
+  if (page) {
+    const original = page.w.eval('conditionLines()');
+    const start = p.indexOf('\n▼症例データ開始\n'), end = p.indexOf('\n▲症例データ終了'), at = p.indexOf(original);
+    if (start < 0 || end < 0) f.push('症例データの区切り行が見つからない');
+    if (at < 0) f.push('元の質問アンケート結果が相談文に完全な形で含まれていない');
+    else if (!(start < at && at + original.length <= end)) f.push('元の質問アンケート結果が症例データ区切りの外にある');
+  }
+  return f;
+}
+
+// ───────────────────────── テスト群 ─────────────────────────
+function testLoad() {
+  const pg = openPage();
+  const f = [...pg.errors];
+  pg.consent();
+  if (pg.$('inputGate').disabled) f.push('同意後も入力欄が無効のまま');
+  record('起動', '読み込みと利用条件への同意', f);
+  pg.close();
+}
+
+function testCombinations() {
+  const probe = openPage();
+  const UT = probe.options('userType'), DR = probe.options('desiredRoute'), PW = probe.options('personWish');
+  probe.close();
+  let n = 0, ai = 0;
+  for (const ut of UT) for (const dr of DR) for (const pw of PW) {
+    n++;
+    const pg = openPage(SEED + n);
+    const f = [];
+    try {
+      pg.consent();
+      pg.set('userType', ut); pg.set('desiredRoute', dr); pg.set('personWish', pw);
+      pg.set('age', '70～74歳'); pg.text('municipality', '東京都北区'); pg.set('dialysisType', '施設血液透析');
+      pg.set('frequency', '週3回'); pg.set('transport', '家族・知人の送迎'); pg.set('urgency', '数か月以内に悪化懸念');
+      pg.confirmAll();
+      pg.submit();
+      const wantsAI = dr.includes('AIチャット');
+      if (!pg.memo()) f.push(`相談メモが生成されない（status: ${pg.status()}）`);
+      if (wantsAI) { ai++; f.push(...checkPrompt(pg.prompt(), expectedBranch(ut, dr), pg)); }
+      else if (pg.prompt()) f.push('AIを使わない経路で相談文が生成された');
+    } catch (e) { f.push('テスト実行中の例外: ' + e.message); }
+    f.unshift(...pg.errors.map(e => 'JS例外: ' + e));
+    record('全組み合わせ', `入力担当者=${ut} / 使い方=${dr} / 本人の希望=${pw}`, f);
+    pg.close();
+  }
+  return { n, ai };
+}
+
+function testTargetedIntent() {
+  const cases = [
+    ['家族・支援者', 'AIチャットで調べてからクリニックへ相談したい', '本人の意向をまだ確認できていない'],
+    ['クリニック職員', V.staffRoute, '本人の意向をまだ確認できていない'],
+    ['患者本人', 'AIチャットで調べてからクリニックへ相談したい', '情報だけ知りたい'],
+    ['患者本人', 'AIチャットで調べてからクリニックへ相談したい', '支援を希望していない'],
+    ['患者本人', V.staffRoute, '情報だけ知りたい'], // 旧M2
+  ];
+  for (const [ut, dr, pw] of cases) {
+    const pg = openPage();
+    pg.consent(); pg.set('userType', ut); pg.set('desiredRoute', dr); pg.set('personWish', pw);
+    pg.set('age', '40～64歳'); pg.text('municipality', '東京都北区'); pg.set('dialysisType', '施設血液透析'); pg.text('notes', '通院が大変');
+    pg.confirmAll(); pg.submit();
+    const p = pg.prompt();
+    const f = [...pg.errors.map(e => 'JS例外: ' + e), ...checkPrompt(p, expectedBranch(ut, dr), pg)];
+    if (!p.includes(`- 本人の希望：${pw}`)) f.push('本人の希望が入力表現のまま症例データに入っていない');
+    record('本人意向', `${ut} / ${dr} / ${pw}`, f);
+    pg.close();
+  }
+}
+
+function testConsistency() {
+  const pg = openPage();
+  const f = [];
+  pg.consent(); pg.set('userType', V.staffUser); pg.set('desiredRoute', V.staffRoute);
+  pg.set('age', '75～84歳'); pg.text('municipality', '東京都北区'); pg.set('dialysisType', '施設血液透析'); pg.set('urgency', '安定'); pg.set('healthInsurance', '国民健康保険');
+  pg.confirmAll(); pg.submit();
+  if (pg.prompt()) f.push('整合性確認なしで生成された');
+  if (!/組み合わせ/.test(pg.status())) f.push('整合性による停止メッセージが出ない: ' + pg.status());
+  if (pg.$('consistencyBox').classList.contains('hidden')) f.push('整合性の確認欄が表示されない');
+  pg.confirmAll({ consistency: true }); pg.submit();
+  const p = pg.prompt();
+  const issues = pg.w.eval('consistencyIssues()');
+  if (!issues.length) f.push('テスト前提: 整合性の指摘が0件');
+  for (const i of issues) if (!p.includes(`- ${i}`)) f.push('整合性の指摘が相談文に渡っていない: ' + i.slice(0, 30));
+  f.push(...checkPrompt(p, expectedBranch(V.staffUser, V.staffRoute), pg));
+  record('整合性', '75歳以上＋国民健康保険', [...pg.errors, ...f]);
+  pg.close();
+
+  const pg2 = openPage();
+  pg2.consent(); pg2.set('age', '70～74歳'); pg2.text('municipality', '東京都北区'); pg2.set('dialysisType', '施設血液透析'); pg2.set('urgency', '安定');
+  pg2.set('desiredRoute', 'AIチャットで調べてからクリニックへ相談したい'); pg2.confirmAll(); pg2.submit();
+  const block = pg2.prompt().split('【ツールが入力時に表示した整合性の指摘】')[1] || '';
+  record('整合性', '指摘なしの場合は「なし」', /\n\s*なし\s*\n/.test(block.split('【元の質問アンケート結果】')[0]) ? [] : ['「なし」が入っていない']);
+  pg2.close();
+}
+
+function testGates() {
+  const base = pg => { pg.consent(); pg.set('desiredRoute', 'AIチャットで調べてからクリニックへ相談したい'); pg.set('age', '70～74歳'); pg.text('municipality', '東京都北区'); pg.set('dialysisType', '施設血液透析'); pg.set('urgency', '安定'); };
+  const run = (name, prep, shouldGenerate) => {
+    const pg = openPage(); base(pg); prep(pg); pg.submit();
+    const got = !!pg.prompt();
+    record('ゲート', name, [...pg.errors, ...(got === shouldGenerate ? [] : [`${shouldGenerate ? '生成されるべきが停止' : '停止すべきが生成'}（status: ${pg.status()}）`])]);
+    pg.close();
+  };
+  run('目視確認なしでは停止', () => {}, false);
+  run('市区町村なしでは停止（AI経路）', pg => { pg.text('municipality', ''); pg.confirmAll(); }, false);
+  run('最低限の入力で生成', pg => pg.confirmAll(), true);
+  for (const n of SPEC.piiShouldPass) run(`PII誤検出なし: ${n}`, pg => { pg.text('notes', n); pg.confirmAll(); }, true);
+  for (const n of SPEC.piiShouldBlock) run(`PII停止: ${n}`, pg => { pg.text('notes', n); pg.confirmAll(); }, false);
+  for (const m of SPEC.municipalityShouldPass) run(`市区町村: ${m}`, pg => { pg.text('municipality', m); pg.confirmAll(); }, true);
+}
+
+function testRandom() {
+  const pg = openPage(SEED);
+  pg.consent();
+  let bad = 0;
+  for (let i = 1; i <= RANDOM_N; i++) {
+    const before = pg.errors.length;
+    pg.$('randomCaseBtn').click();
+    const ut = pg.$('userType').value, dr = pg.$('desiredRoute').value;
+    const f = [...pg.errors.slice(before).map(e => 'JS例外: ' + e), ...checkPrompt(pg.prompt(), expectedBranch(ut, dr), pg)];
+    if (pg.w.eval('consistencyIssues().length')) f.push('ランダム症例に整合性の指摘が残った');
+    if (f.length) { bad++; record('ランダム', `#${i}（seed=${SEED}） 入力担当者=${ut} / 使い方=${dr} / 本人の希望=${pg.$('personWish').value}`, f); }
+  }
+  record('ランダム', `${RANDOM_N}回（seed=${SEED}）`, bad ? [`${bad}件で失敗（上記参照）`] : []);
+  pg.close();
+}
+
+async function testCsvAndButtons() {
+  const pg = openPage(SEED + 7);
+  pg.consent();
+  const snap = p => { const o = {}; p.d.querySelectorAll('#caseForm select, #caseForm input[type=text], #caseForm textarea').forEach(e => { o[e.id] = e.value; }); ['heldCerts', 'supportTasks', 'services'].forEach(g => { o[g] = [...p.$(g).querySelectorAll('input:checked')].map(x => x.value).join('|'); }); return o; };
+  const saved = [];
+  const extraNotes = ['', '=1+1 から始まる補足', '引用符"と、読点、改行\n二行目', '+先頭記号', ''];
+  for (let i = 0; i < 5; i++) {
+    pg.$('randomCaseBtn').click();
+    pg.text('caseId', 'T' + i);
+    if (extraNotes[i]) pg.text('notes', extraNotes[i]);
+    pg.confirmAll({ consistency: true }); pg.submit();
+    const prompt = pg.prompt();
+    pg.confirmAll({ consistency: true });
+    pg.$('saveCaseBtn').click();
+    saved.push({ state: snap(pg), prompt });
+  }
+  const f = [...pg.errors];
+  if (pg.w.__downloads.length < 5) f.push('CSVがダウンロードされない');
+  const csv = await pg.w.__downloads[pg.w.__downloads.length - 1].text();
+  if (!csv.includes("'=1+1")) f.push('数式インジェクション対策（先頭アポストロフィ）が効いていない');
+
+  // 別ページで読込→呼び出し→再生成
+  const pg2 = openPage(SEED + 8); pg2.consent();
+  const file = new pg2.w.File([csv], 'cases.csv', { type: 'text/csv' });
+  Object.defineProperty(pg2.$('caseFileInput'), 'files', { value: [file] });
+  pg2.$('caseFileInput').dispatchEvent(new pg2.w.Event('change'));
+  await new Promise(r => setTimeout(r, 300));
+  if (!/5件/.test(pg2.$('caseLoadStatus').textContent)) f.push('CSV読込件数が5件にならない: ' + pg2.$('caseLoadStatus').textContent);
+  for (const s of saved) {
+    const grp = [...pg2.d.querySelectorAll('.case-group')].find(g => g.textContent.includes(`識別コード：${s.state.caseId}（`));
+    if (!grp) { f.push('一覧に識別コードがない: ' + s.state.caseId); continue; }
+    grp.querySelector('button').click();
+    const after = snap(pg2);
+    for (const k of Object.keys(s.state)) if (after[k] !== s.state[k]) f.push(`CSV往復で値が変わった: ${s.state.caseId}.${k}`);
+    pg2.confirmAll({ consistency: true }); pg2.submit();
+    if (pg2.prompt() !== s.prompt) f.push(`CSV往復後に相談文が変わった: ${s.state.caseId}`);
+  }
+  f.push(...pg2.errors);
+  record('CSV', '保存→別ページで読込→呼び出し→再生成', f);
+  pg2.close();
+
+  // 無関係なCSVは拒否
+  const pg3 = openPage(); pg3.consent();
+  const junk = new pg3.w.File(['品名,数量\nりんご,3\n'], 'junk.csv', { type: 'text/csv' });
+  Object.defineProperty(pg3.$('caseFileInput'), 'files', { value: [junk] });
+  pg3.$('caseFileInput').dispatchEvent(new pg3.w.Event('change'));
+  await new Promise(r => setTimeout(r, 200));
+  record('CSV', '無関係なCSVを拒否', /見つかりませんでした/.test(pg3.$('caseLoadStatus').textContent) ? [...pg3.errors] : ['無関係なCSVが読み込まれた']);
+  pg3.close();
+
+  // ボタン類
+  const g = [];
+  pg.$('randomCaseBtn').click();
+  pg.$('copyResearchBtn').click(); await new Promise(r => setTimeout(r, 50));
+  if (pg.w.__clip !== pg.prompt()) g.push('コピー内容が相談文と一致しない');
+  const k = pg.w.__downloads.length; pg.$('downloadBtn').click();
+  if (!pg.w.__downloads[k] || await pg.w.__downloads[k].text() !== pg.prompt()) g.push('txtダウンロード内容が相談文と一致しない');
+  pg.$('printBtn').click(); if (!pg.w.__printed) g.push('印刷が呼ばれない');
+  pg.set('age', '40～64歳');
+  if (!pg.$('resultPanel').classList.contains('hidden') || pg.prompt()) g.push('入力変更後に古い相談文が残っている');
+  record('ボタン', 'コピー／ダウンロード／印刷／入力変更時の破棄', [...pg.errors, ...g]);
+  pg.close();
+}
+
+// ───────────────────────── 実行 ─────────────────────────
+(async () => {
+  const t0 = Date.now();
+  console.log(`対象: ${HTML_PATH}`);
+  console.log(`ランダム: ${RANDOM_N}回 / seed=${SEED}\n`);
+  testLoad();
+  const { n, ai } = testCombinations();
+  testTargetedIntent();
+  testConsistency();
+  testGates();
+  testRandom();
+  await testCsvAndButtons();
+
+  const failed = results.filter(r => r.failures.length);
+  const bySuite = {};
+  for (const r of results) { const s = bySuite[r.suite] || (bySuite[r.suite] = { pass: 0, fail: 0 }); r.failures.length ? s.fail++ : s.pass++; }
+  console.log('\n──────── 集計 ────────');
+  for (const [s, c] of Object.entries(bySuite)) console.log(`${c.fail ? '✗' : '✓'} ${s}: ${c.pass}件成功 / ${c.fail}件失敗`);
+  console.log(`（全組み合わせ ${n}通り、うちAI経路 ${ai}通り）  ${((Date.now() - t0) / 1000).toFixed(1)}秒`);
+  if (failed.length) {
+    console.log(`\n結果: 失敗 ${failed.length}件 — リリースしないでください`);
+    process.exit(1);
+  }
+  console.log('\n結果: すべて成功');
+  process.exit(0);
+})().catch(e => { console.error('テストハーネス自体のエラー:', e); process.exit(2); });
