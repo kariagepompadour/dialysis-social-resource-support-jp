@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /*
- * 透析患者 社会資源探索支援ツール — リリース前回帰テスト
+ * 透析患者 社会資源活用支援ツール — リリース前回帰テスト
  *
  * 使い方:
  *   npm test                                   # index.html を対象に全テスト
@@ -242,9 +242,13 @@ function checkPrompt(p, { staff, self }, page) {
 function testLoad() {
   const pg = openPage();
   const f = [...pg.errors];
+  if (!pg.$('markdownPanel').classList.contains('hidden')) f.push('同意前からMarkdown保存区画が表示されている');
   pg.consent();
   if (pg.$('inputGate').disabled) f.push('同意後も入力欄が無効のまま');
-  record('起動', '読み込みと利用条件への同意', f);
+  if (pg.$('markdownPanel').classList.contains('hidden')) f.push('同意後もMarkdown保存区画が非表示のまま');
+  pg.$('useRulesConfirm').checked = false; pg.$('useRulesConfirm').dispatchEvent(new pg.w.Event('change', { bubbles: true }));
+  if (!pg.$('markdownPanel').classList.contains('hidden')) f.push('同意解除後もMarkdown保存区画が表示されている');
+  record('起動', '読み込み・利用条件への同意・Markdown表示ゲート', f);
   pg.close();
 }
 

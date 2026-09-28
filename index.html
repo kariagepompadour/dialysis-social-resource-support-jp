@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
-  <title>架空症例用｜透析患者 社会資源探索支援ツール</title>
+  <title>架空症例用｜透析患者 社会資源活用支援ツール</title>
   <style>
     :root{--ink:#16242d;--muted:#5b6a73;--blue:#0b5d77;--blue2:#e8f4f7;--line:#d5e0e4;--bg:#f3f7f8;--white:#fff;--warn:#9a3412;--warnbg:#fff4ed;--ok:#176b4d;--shadow:0 12px 32px rgba(22,36,45,.08);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI","Yu Gothic",Meiryo,sans-serif}
     *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);line-height:1.65} button,input,select,textarea{font:inherit} a{color:var(--blue)}
@@ -22,7 +22,7 @@
   </style>
 </head>
 <body>
-<header><div class="wrap"><h1>架空症例用｜透析患者 社会資源探索支援ツール</h1><p>架空症例を用いて、社会資源探索の手順とAI出力の確認方法を試すための公開評価版です。</p></div></header>
+<header><div class="wrap"><h1>架空症例用｜透析患者 社会資源活用支援ツール</h1><p>架空症例を用いて、透析患者の生活上の困り事を整理し、社会資源の候補、最初の相談先、相談・申請の順序を検討するための公開評価版です。</p></div></header>
 <main>
   <div class="notice warn"><strong>利用を始める前に、次のルールを確認してください</strong>
     <ul>
@@ -139,13 +139,13 @@
     <div class="route" id="aiRoute"><h3>AIチャット相談文</h3><p class="lead">内容を確認してから、Web検索が使えるAIチャットへ1回貼り付けてください。参照URLは、最終利用前に人が実際に開いて確認します。</p><p class="readonly-note">編集不可：修正が必要な場合は、上の入力項目を直してもう一度生成してください。</p><textarea id="researchPrompt" readonly aria-label="編集できないAIチャット相談文"></textarea><div class="actions"><button class="btn primary" id="copyResearchBtn" type="button">AIチャット相談文をコピー</button></div>
     </div>
     <p class="hint">共有端末へ保存したテキストファイルは、使用後にダウンロードフォルダから削除してください。</p><div id="copyStatus" class="status" aria-live="polite"></div></section>
-  <section class="panel" id="markdownPanel"><h2>相談文・AIの回答をMarkdownで保存</h2><p class="lead">AIチャット相談文やAIの回答をコピーしてから取り込むと、内容を確認して .md 形式で保存できます。架空症例の内容だけを扱ってください。ファイルはこの端末にダウンロードされ、外部へ自動送信されません。</p><details class="optional-details" id="markdownDetails"><summary>クリップボードから取り込む・Markdownで保存</summary><div class="detail-hint"><div class="actions"><button class="btn secondary" id="importClipboardBtn" type="button">クリップボードから取り込む</button></div><div class="field"><label for="markdownContent">保存する内容（確認・修正できます）</label><textarea id="markdownContent" placeholder="上の相談文をコピーするか、AIの回答をコピーしてから取り込んでください。"></textarea></div><div class="field"><label for="markdownFilename">ファイル名</label><input id="markdownFilename" type="text" spellcheck="false" aria-describedby="markdownFilenameHint"><span class="hint" id="markdownFilenameHint">識別コードと日時から自動入力します。必要なら「相談文」「AI回答」などを書き足してください。</span></div><div class="actions"><button class="btn primary" id="saveMarkdownBtn" type="button">Markdownで保存</button></div><p id="markdownStatus" class="status" aria-live="polite"></p></div></details></section>
+  <section class="panel hidden" id="markdownPanel"><h2>相談文・AIの回答をMarkdownで保存</h2><p class="lead">AIチャット相談文やAIの回答をコピーしてから取り込むと、内容を確認して .md 形式で保存できます。架空症例の内容だけを扱ってください。ファイルはこの端末にダウンロードされ、外部へ自動送信されません。</p><details class="optional-details" id="markdownDetails"><summary>クリップボードから取り込む・Markdownで保存</summary><div class="detail-hint"><div class="actions"><button class="btn secondary" id="importClipboardBtn" type="button">クリップボードから取り込む</button></div><div class="field"><label for="markdownContent">保存する内容（確認・修正できます）</label><textarea id="markdownContent" placeholder="上の相談文をコピーするか、AIの回答をコピーしてから取り込んでください。"></textarea></div><div class="field"><label for="markdownFilename">ファイル名</label><input id="markdownFilename" type="text" spellcheck="false" aria-describedby="markdownFilenameHint"><span class="hint" id="markdownFilenameHint">識別コードと日時から自動入力します。必要なら「相談文」「AI回答」などを書き足してください。</span></div><div class="actions"><button class="btn primary" id="saveMarkdownBtn" type="button">Markdownで保存</button></div><p id="markdownStatus" class="status" aria-live="polite"></p></div></details></section>
 </main>
-<footer>公開評価版 4.32　架空症例専用です。実患者情報を用いる運用は対象外であり、公開利用者の入力内容やAI回答を作成者・公開者が収集することはありません。<br>Copyright (c) 2026 Hiromasa Akimoto　—　MIT License</footer>
+<footer>公開評価版 4.32.1　架空症例専用です。実患者情報を用いる運用は対象外であり、公開利用者の入力内容やAI回答を作成者・公開者が収集することはありません。<br>Copyright (c) 2026 Hiromasa Akimoto　—　MIT License</footer>
 <script>
   'use strict';
   const $=id=>document.getElementById(id), val=id=>$(id).value;
-  function updateStartGate(){const ready=$('useRulesConfirm').checked;$('inputGate').disabled=!ready;$('inputGate').classList.toggle('hidden',!ready);$('startGateStatus').textContent=ready?'利用条件への同意を確認しました。症例条件の入力欄を表示しています。':'上記の利用条件への同意後、症例条件の入力欄を表示します。';$('startGateStatus').style.color=ready?'var(--ok)':''}
+  function updateStartGate(){const ready=$('useRulesConfirm').checked;$('inputGate').disabled=!ready;$('inputGate').classList.toggle('hidden',!ready);$('markdownPanel').classList.toggle('hidden',!ready);$('startGateStatus').textContent=ready?'利用条件への同意を確認しました。症例条件の入力欄を表示しています。':'上記の利用条件への同意後、症例条件の入力欄を表示します。';$('startGateStatus').style.color=ready?'var(--ok)':''}
   $('useRulesConfirm').addEventListener('change',updateStartGate);updateStartGate();
   const labels={userType:'入力者',desiredRoute:'希望する使い方',personWish:'本人の希望',age:'年齢帯',municipality:'居住市区町村',living:'世帯',healthInsurance:'現在の医療保険',publicAssistance:'生活保護等',careLevel:'要介護認定',specifiedDisease16:'40～64歳の16特定疾病との関係',renalCause:'腎不全の原因疾患',disability:'障害者手帳',disabilityDetail:'身体障害者手帳の内容',taxStatus:'住民税の課税状況',upcomingMilestone:'半年以内の年齢到達',specificDiseaseCertificate:'特定疾病療養受療証等',careManager:'相談窓口',dialysisType:'腎代替療法',transport:'透析のための通院の主な手段',doorToCar:'玄関から車両まで',boarding:'車両への乗降',postDialysis:'透析後の状態',transportStability:'送迎手段の継続性',wheelchair:'移動機器',escort:'院内付き添い',mobility:'屋内移動',transfer:'立ち上がり・移乗',stairs:'階段',toileting:'排泄',bathing:'入浴・清潔',dressing:'更衣',communication:'意思伝達',decision:'日常の意思決定',cognition:'認知・行動',meal:'食事・調理',medication:'服薬管理',money:'金銭・手続き',housing:'住宅種別',barrier:'住宅上の障壁',monitoring:'見守り・孤立',economy:'経済状況',work:'就労',urgency:'在宅継続の緊急度',supporter:'主な支援者',distance:'支援者の居住地・活動拠点',supportFrequency:'実働頻度',continuity:'支援者の継続可能性',supporterBarrier:'支援者側の制約'};
   const checked=id=>[...$(id).querySelectorAll('input:checked')].map(x=>x.value);
