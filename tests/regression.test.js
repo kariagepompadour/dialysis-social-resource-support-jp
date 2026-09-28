@@ -78,6 +78,7 @@ const SPEC = {
     '1単位＝10円と仮定しない。',
     '同じチャット内で「週2回ならいくら」等の追加質問を受けた場合にも継続して適用する。',
     'その証の対象疾病名・対象障害・認定理由・所得区分は、入力に書かれていない限り「入力なし」として扱う。',
+    '透析の方法だけから施設への通院回数を推定しない。',
     '(c) 入力された「在宅継続の緊急度」を、別の区分へ上書き・再判定しない。',
     '住民税の「課税／非課税」の入力だけでは所得区分が確定しない制度では、区分未確定として扱う。',
     '- 特定疾病の区別：',
@@ -93,7 +94,6 @@ const SPEC = {
     '申請中を含む複合選択肢は入力表現のまま示す',
     'ツール指摘には誤りとは限らない確認事項が含まれるため、誤入力と断定せず、確認したい組み合わせとして示す。',
     '0-0. 入力の要点', 'H. 参照URL一覧と人による確認欄', 'AI自己監査記録（AIの自己申告）',
-    'J. 元の質問アンケート結果',
     '「検証済み」とは書かない。',
   ],
   // v4.31 R-12：意味を持つ条項（見出しだけでなく中身を固定）
@@ -161,10 +161,10 @@ function openPage(seed = SEED) {
       w.HTMLElement.prototype.scrollIntoView = function () {};
       w.scrollTo = () => {}; w.print = () => { w.__printed = true; };
       w.confirm = () => true; w.alert = () => {};
-      w.__clip = null; w.navigator.clipboard = { writeText: async t => { w.__clip = t; } };
+      w.__clip = null; w.__clipboardReadFails = false; w.navigator.clipboard = { writeText: async t => { w.__clip = t; }, readText: async () => { if (w.__clipboardReadFails) throw new Error('permission denied'); return w.__clip || ''; } };
       w.document.execCommand = () => true;
-      w.__downloads = []; w.URL.createObjectURL = b => { w.__downloads.push(b); return 'blob:test'; }; w.URL.revokeObjectURL = () => {};
-      w.HTMLAnchorElement.prototype.click = function () {};
+      w.__downloads = []; w.__downloadNames = []; w.URL.createObjectURL = b => { w.__downloads.push(b); return 'blob:test'; }; w.URL.revokeObjectURL = () => {};
+      w.HTMLAnchorElement.prototype.click = function () { w.__downloadNames.push(this.download); };
       if (!w.Blob.prototype.text) w.Blob.prototype.text = function () { return new Promise((res, rej) => { const r = new w.FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsText(this); }); };
       w.addEventListener('error', e => errors.push('window.error: ' + e.message));
       w.addEventListener('unhandledrejection', e => errors.push('unhandledrejection: ' + (e.reason && e.reason.message || e.reason)));
@@ -227,6 +227,8 @@ function checkPrompt(p, { staff, self }, page) {
 
   // 元の症例条件が区切りの内側に丸ごと入っているか（J節の材料）
   if (page) {
+    if (p.includes('\nJ. 元の質問アンケート結果\n')!==page.$('includeOriginalInAnswer').checked) f.push('Jの表示選択が相談文へ反映されていない');
+    if (p.includes('\nI. 略称対応表\n')!==page.$('includeAbbreviationsInAnswer').checked) f.push('Iの表示選択が相談文へ反映されていない');
     const original = page.w.eval('conditionLines()');
     const start = p.indexOf('\n▼症例データ開始\n'), end = p.indexOf('\n▲症例データ終了'), at = p.indexOf(original);
     if (start < 0 || end < 0) f.push('症例データの区切り行が見つからない');
@@ -259,7 +261,7 @@ function testCombinations() {
       pg.consent();
       pg.set('userType', ut); pg.set('desiredRoute', dr); pg.set('personWish', pw);
       pg.set('age', '70～74歳'); pg.text('municipality', '東京都北区'); pg.set('dialysisType', '施設血液透析');
-      pg.set('frequency', '週3回'); pg.set('transport', '家族・知人の送迎'); pg.set('urgency', '数か月以内に悪化懸念');
+      pg.set('transport', '家族・知人の送迎'); pg.set('urgency', '数か月以内に悪化懸念');
       pg.confirmAll();
       pg.submit();
       const wantsAI = dr.includes('AIチャット');
@@ -321,7 +323,6 @@ function testConsistency() {
   pg2.close();
 
   const consistencyCases = [
-    ['施設血液透析＋週1回以下', pg => { pg.set('dialysisType','施設血液透析'); pg.set('frequency','週1回以下'); }, '通院頻度が「週1回以下」'],
     ['高齢受給者証＋65～69歳', pg => { pg.set('age','65～69歳'); [...pg.$('heldCerts').querySelectorAll('input')].find(x=>x.value==='高齢受給者証等').checked=true; }, '高齢受給者証等'],
     ['生活保護申請中＋医療券', pg => { pg.set('publicAssistance','生活保護を申請中・相談中'); [...pg.$('heldCerts').querySelectorAll('input')].find(x=>x.value==='生活保護の医療券等').checked=true; }, '申請・決定の現在地'],
     ['生活保護申請中＋障害者医療費助成証', pg => { pg.set('publicAssistance','生活保護を申請中・相談中'); [...pg.$('heldCerts').querySelectorAll('input')].find(x=>x.value==='障害者医療費助成の受給者証').checked=true; }, '現在の適用状況'],
@@ -377,6 +378,54 @@ function testGates() {
   for (const n of SPEC.piiShouldPass) run(`PII誤検出なし: ${n}`, pg => { pg.text('notes', n); pg.confirmAll(); }, true);
   for (const n of SPEC.piiShouldBlock) run(`PII停止: ${n}`, pg => { pg.text('notes', n); pg.confirmAll(); }, false);
   for (const m of SPEC.municipalityShouldPass) run(`市区町村: ${m}`, pg => { pg.text('municipality', m); pg.confirmAll(); }, true);
+}
+
+function testRevisedQuestionsAndOutputOptions() {
+  const pg = openPage(); pg.consent();
+  const f = [];
+  if (pg.$('frequency')) f.push('削除した通院頻度の入力欄が残っている');
+  if (pg.options('transport').includes('救急搬送に依存') || !pg.options('transport').includes('その他')) f.push('送迎の旧選択肢が残るか「その他」がない');
+  pg.set('dialysisType','腹膜透析＋施設血液透析'); pg.set('disability','手帳なし');
+  if (!pg.$('disabilityStatus').textContent.includes('身体障害者手帳')) f.push('併用療法で手帳の確認案内が出ない');
+  if (pg.w.eval('consistencyIssues()').some(x => /通院頻度/.test(x))) f.push('削除した通院頻度の整合性指摘が残っている');
+  record('項目変更','併用療法・送迎・頻度削除', [...pg.errors,...f]); pg.close();
+  for (const original of [true,false]) for (const abbreviations of [true,false]) {
+    const p=openPage(); p.consent();p.set('desiredRoute','AIチャットで調べてからクリニックへ相談したい');p.set('age','70～74歳');p.text('municipality','東京都北区');p.set('dialysisType','腹膜透析＋施設血液透析');p.set('urgency','安定');
+    p.$('includeOriginalInAnswer').checked=original;p.$('includeAbbreviationsInAnswer').checked=abbreviations;p.confirmAll();p.submit();
+    const t=p.prompt(),fail=[...p.errors];
+    if (t.includes('\nJ. 元の質問アンケート結果\n')!==original) fail.push('Jの出力指定がチェックと一致しない');
+    if (t.includes('\nI. 略称対応表\n')!==abbreviations) fail.push('Iの出力指定がチェックと一致しない');
+    if (!t.includes('【元の質問アンケート結果】\n'+p.w.eval('conditionLines()'))) fail.push('Jを非表示にするとAIへの症例条件まで消える');
+    if (original && !t.includes('Jが元条件を含むため再入力は不要')) fail.push('Jありの別AIレビュー案内がない');
+    if (!original && (!t.includes('第3部の症例条件も別途渡す必要') || !t.includes('Jを再掲していないか'))) fail.push('Jなしのレビュー案内または自己監査が不整合');
+    fail.push(...checkPrompt(t,expectedBranch(p.$('userType').value,p.$('desiredRoute').value),p));
+    record('回答オプション',`元アンケート=${original} / 略称=${abbreviations}`,fail);p.close();
+  }
+}
+
+async function testMarkdownFlow() {
+  const p=openPage();p.consent();const f=[];
+  p.text('caseId','A001');p.set('desiredRoute','AIチャットで調べてからクリニックへ相談したい');p.set('age','70～74歳');p.text('municipality','東京都北区');p.set('dialysisType','施設血液透析');p.set('urgency','安定');p.confirmAll();p.submit();
+  p.$('copyResearchBtn').click();await new Promise(r=>setTimeout(r,0));
+  if (!p.$('markdownFilename').value.match(/^A001_\d{8}-\d{6}\.md$/)) f.push('識別コード＋日時のファイル名にならない');
+  p.w.__clipboardReadFails=true;p.$('importClipboardBtn').click();await new Promise(r=>setTimeout(r,0));
+  p.text('markdownContent','# 手動で貼り付けたAI回答');p.set('age','65～69歳');
+  if (p.$('markdownContent').value!=='# 手動で貼り付けたAI回答') f.push('手動貼り付けしたAI回答が入力変更で消える');
+  p.confirmAll();p.submit();
+  p.w.__clip='以前の文章';p.w.confirm=()=>false;p.$('copyResearchBtn').click();await new Promise(r=>setTimeout(r,0));
+  if (p.w.__clip!==p.prompt() || !p.$('copyStatus').textContent.includes('コピーしました')) f.push('確認欄の置き換えをキャンセルすると相談文のコピーも止まる');
+  if (p.$('markdownContent').value!=='# 手動で貼り付けたAI回答') f.push('置き換えキャンセル時に確認欄の内容が変わる');
+  p.w.confirm=()=>true;p.w.__clipboardReadFails=false;
+  p.w.__clip='# AIの回答\n本文';p.$('importClipboardBtn').click();await new Promise(r=>setTimeout(r,0));
+  if (p.$('markdownContent').value!==p.w.__clip) f.push('AI回答の取り込みに失敗');
+  p.text('markdownFilename','A001_相談結果.md');const n=p.w.__downloads.length;p.$('saveMarkdownBtn').click();
+  if (p.w.__downloadNames[n]!=='A001_相談結果.md' || await p.w.__downloads[n].text()!=='# AIの回答\n本文') f.push('編集したファイル名・内容でMarkdown保存されない');
+  p.w.__clipboardReadFails=true;p.$('importClipboardBtn').click();await new Promise(r=>setTimeout(r,0));
+  if (!p.$('markdownStatus').textContent.includes('手動で貼り付け')) f.push('クリップボード権限拒否時の手動貼付案内がない');
+  p.text('markdownContent','手動で貼り付けた内容');p.text('markdownFilename','回答');const n2=p.w.__downloads.length;p.$('saveMarkdownBtn').click();
+  if (p.w.__downloadNames[n2]!=='回答.md') f.push('拡張子なしのファイル名へ .md が付かない');
+  p.$('resetBtn').click();if (!p.$('includeOriginalInAnswer').checked||!p.$('includeAbbreviationsInAnswer').checked||p.$('markdownContent').value) f.push('リセットで既定のチェックと保存欄が戻らない');
+  record('Markdown','コピー・回答取込・保存・権限拒否・リセット',[...p.errors,...f]);p.close();
 }
 
 function testRandom() {
@@ -436,6 +485,30 @@ async function testCsvAndButtons() {
   record('CSV', '保存→別ページで読込→呼び出し→再生成', f);
   pg2.close();
 
+  // 旧版の送迎・頻度列を含むCSVは、送迎を見出しで引き継ぎ、頻度は無視する。
+  const legacyRows=pg.w.eval('parseCSV')(csv);
+  legacyRows[0][legacyRows[0].indexOf('透析のための通院の主な手段')]='現在の主な送迎';
+  legacyRows[0].splice(2,0,'透析通院頻度');
+  for(const row of legacyRows.slice(1))row.splice(2,0,'週3回');
+  const legacyCsv='\uFEFF'+legacyRows.map(row=>pg.w.eval('toCsvRow')(row)).join('\r\n')+'\r\n';
+  const pg4=openPage();pg4.consent();
+  const oldFile=new pg4.w.File([legacyCsv],'old-cases.csv',{type:'text/csv'});
+  Object.defineProperty(pg4.$('caseFileInput'),'files',{value:[oldFile]});
+  pg4.$('caseFileInput').dispatchEvent(new pg4.w.Event('change'));
+  await new Promise(r=>setTimeout(r,200));
+  const legacyFailures=[...pg4.errors];
+  const oldGroup=[...pg4.d.querySelectorAll('.case-group')].find(g=>g.textContent.includes('識別コード：T0（'));
+  if(!oldGroup)legacyFailures.push('旧CSVの識別コードが読み込めない');
+  else {oldGroup.querySelector('button').click();if(pg4.$('transport').value!==saved[0].state.transport)legacyFailures.push('旧CSVの送迎が失われた');if(pg4.$('frequency'))legacyFailures.push('旧CSVの頻度列がフォームに復活した');}
+  record('CSV','旧見出し・頻度列の読み込み',legacyFailures);pg4.close();
+
+  const rescuedRows=legacyRows.map(row=>[...row]);
+  const oldTransportColumn=rescuedRows[0].indexOf('現在の主な送迎');
+  rescuedRows[1][oldTransportColumn]='救急搬送に依存';
+  const rescued=pg.w.eval('rowsToCases')(rescuedRows)[0];
+  const pg5=openPage();pg5.consent();pg5.w.eval('applyCaseToForm')(rescued);
+  record('CSV','旧版の救急搬送選択を推測で置換しない',[...pg5.errors,...(pg5.$('transport').value==='わからない・未入力'&&pg5.$('piiStatus').textContent.includes('旧版の「救急搬送に依存」')?[]:['旧選択肢が不明に戻らないか確認案内がない'])]);pg5.close();
+
   // 無関係なCSVは拒否
   const pg3 = openPage(); pg3.consent();
   const junk = new pg3.w.File(['品名,数量\nりんご,3\n'], 'junk.csv', { type: 'text/csv' });
@@ -447,15 +520,19 @@ async function testCsvAndButtons() {
 
   // ボタン類
   const g = [];
+  pg.text('caseId','');
   pg.$('randomCaseBtn').click();
   pg.$('copyResearchBtn').click(); await new Promise(r => setTimeout(r, 50));
   if (pg.w.__clip !== pg.prompt()) g.push('コピー内容が相談文と一致しない');
-  const k = pg.w.__downloads.length; pg.$('downloadBtn').click();
-  if (!pg.w.__downloads[k] || await pg.w.__downloads[k].text() !== pg.prompt()) g.push('txtダウンロード内容が相談文と一致しない');
+  if (pg.$('markdownContent').value !== pg.prompt() || !pg.$('markdownDetails').open) g.push('コピー後にMarkdown確認欄へ相談文が表示されない');
+  const k = pg.w.__downloads.length; pg.$('saveMarkdownBtn').click();
+  if (!pg.w.__downloads[k] || await pg.w.__downloads[k].text() !== pg.prompt()) g.push('Markdown保存内容が相談文と一致しない');
+  if (!/^\d{8}-\d{6}\.md$/.test(pg.w.__downloadNames[k])) g.push('識別コードなしのファイル名が日時.mdにならない');
   pg.$('printBtn').click(); if (!pg.w.__printed) g.push('印刷が呼ばれない');
   pg.set('age', '40～64歳');
   if (!pg.$('resultPanel').classList.contains('hidden') || pg.prompt()) g.push('入力変更後に古い相談文が残っている');
-  record('ボタン', 'コピー／ダウンロード／印刷／入力変更時の破棄', [...pg.errors, ...g]);
+  if (pg.$('markdownContent').value) g.push('入力変更後に保存前の古い相談文が残っている');
+  record('ボタン', 'コピー／Markdown保存／印刷／入力変更時の破棄', [...pg.errors, ...g]);
   pg.close();
 }
 
@@ -469,8 +546,10 @@ async function testCsvAndButtons() {
   testTargetedIntent();
   testConsistency();
   testGates();
+  testRevisedQuestionsAndOutputOptions();
   testRandom();
   await testCsvAndButtons();
+  await testMarkdownFlow();
 
   const failed = results.filter(r => r.failures.length);
   const bySuite = {};
