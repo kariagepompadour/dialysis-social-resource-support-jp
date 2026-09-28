@@ -84,6 +84,14 @@ const SPEC = {
     'それをAI独自の「緊急度」「緊急性」として表現しない。',
     '▼症例データ開始', '【ツールが入力時に表示した整合性の指摘】', '【元の質問アンケート結果】', '▲症例データ終了',
     'S1【検索軸の抽出】', 'S6【確認できない場合】',
+    '特に次は、該当し得る入力がある限り、H0を「？」とする前に国・都道府県・市区町村等の公式本文を検索する',
+    '透析実施、診断名、証の有無等だけから対象疾病、障害等級、受給資格を推定してはならず',
+    '取得可能性を断定せずに公式要件を確認する。',
+    'S3の中核確認項目が「？」のまま回答を終える場合は、未確認の制度名を明示し',
+    '末尾に「続けて○○を公式情報で調べる」ための具体的な依頼例を1行示す。',
+    '入力で申請中と確認できる制度は「情報不足（申請中）」と表記し、「未取得・未申請」とは表現しない。',
+    '申請中を含む複合選択肢は入力表現のまま示す',
+    'ツール指摘には誤りとは限らない確認事項が含まれるため、誤入力と断定せず、確認したい組み合わせとして示す。',
     '0-0. 入力の要点', 'H. 参照URL一覧と人による確認欄', 'AI自己監査記録（AIの自己申告）',
     'J. 元の質問アンケート結果',
     '「検証済み」とは書かない。',
@@ -122,7 +130,7 @@ const SPEC = {
     /順位付けに費用|費用(も|を)考慮して(順位|並べ|絞)/,
     /候補は省略/,
   ],
-  forbidden: [/undefined/, /\$\{/, /\[object /, /NaN/],
+  forbidden: [/undefined/, /\$\{/, /\[object /, /NaN/, /透析(実施|中)?(から|なら|のため).{0,12}(対象|該当)として扱/],
   // 誤検出してはいけない一般的な補足文
   piiShouldPass: [
     '週3回透析。第2号被保険者か確認したい。', '透析クリニックと総合病院の連携で順番待ち。週3-4回の送迎が必要。',
@@ -311,6 +319,48 @@ function testConsistency() {
   const block = pg2.prompt().split('【ツールが入力時に表示した整合性の指摘】')[1] || '';
   record('整合性', '指摘なしの場合は「なし」', /\n\s*なし\s*\n/.test(block.split('【元の質問アンケート結果】')[0]) ? [] : ['「なし」が入っていない']);
   pg2.close();
+
+  const consistencyCases = [
+    ['施設血液透析＋週1回以下', pg => { pg.set('dialysisType','施設血液透析'); pg.set('frequency','週1回以下'); }, '通院頻度が「週1回以下」'],
+    ['高齢受給者証＋65～69歳', pg => { pg.set('age','65～69歳'); [...pg.$('heldCerts').querySelectorAll('input')].find(x=>x.value==='高齢受給者証等').checked=true; }, '高齢受給者証等'],
+    ['生活保護申請中＋医療券', pg => { pg.set('publicAssistance','生活保護を申請中・相談中'); [...pg.$('heldCerts').querySelectorAll('input')].find(x=>x.value==='生活保護の医療券等').checked=true; }, '申請・決定の現在地'],
+    ['生活保護申請中＋障害者医療費助成証', pg => { pg.set('publicAssistance','生活保護を申請中・相談中'); [...pg.$('heldCerts').querySelectorAll('input')].find(x=>x.value==='障害者医療費助成の受給者証').checked=true; }, '現在の適用状況'],
+    ['車椅子乗車必要＋歩行器', pg => { pg.set('boarding','車椅子のまま乗車が必要'); pg.set('wheelchair','歩行器'); }, '場面による使い分け'],
+    ['施設住まい＋支援者同居', pg => { pg.set('living','施設・住まい系サービス'); pg.set('distance','同居'); }, '入力の意味を確認'],
+  ];
+  for (const [name, prep, expected] of consistencyCases) {
+    const pc = openPage();
+    pc.consent(); pc.set('userType', V.staffUser); pc.set('desiredRoute', V.staffRoute); pc.set('age','70～74歳'); pc.text('municipality','東京都北区'); pc.set('dialysisType','施設血液透析'); pc.set('urgency','安定'); prep(pc);
+    const issues = pc.w.eval('consistencyIssues()');
+    const ff = [];
+    if (!issues.some(x => x.includes(expected))) ff.push(`確認指摘が出ない: ${expected}`);
+    pc.confirmAll({ consistency: true }); pc.submit();
+    const pp = pc.prompt();
+    for (const i of issues) if (!pp.includes(`- ${i}`)) ff.push('確認指摘が相談文に渡っていない: ' + i.slice(0,30));
+    record('整合性', name, [...pc.errors, ...ff]);
+    pc.close();
+  }
+
+  const noWarnCases = [
+    ['高齢受給者証＋70～74歳＋国民健康保険', pg => { pg.set('age','70～74歳'); pg.set('healthInsurance','国民健康保険'); [...pg.$('heldCerts').querySelectorAll('input')].find(x=>x.value==='高齢受給者証等').checked=true; }],
+    ['年齢未入力＋高齢受給者証', pg => { pg.set('age','わからない・未入力'); [...pg.$('heldCerts').querySelectorAll('input')].find(x=>x.value==='高齢受給者証等').checked=true; }],
+  ];
+  for (const [name, prep] of noWarnCases) {
+    const pc = openPage(); pc.consent(); pc.set('userType', V.staffUser); pc.set('desiredRoute', V.staffRoute); pc.text('municipality','東京都北区'); pc.set('dialysisType','施設血液透析'); pc.set('urgency','安定'); prep(pc);
+    const issues=pc.w.eval('consistencyIssues()');
+    record('整合性', name, issues.length ? ['誤警告: '+issues.join(' / ')] : []); pc.close();
+  }
+  const late = openPage(); late.consent(); late.set('age','70～74歳'); late.set('healthInsurance','後期高齢者医療'); [...late.$('heldCerts').querySelectorAll('input')].find(x=>x.value==='高齢受給者証等').checked=true;
+  const lateIssues=late.w.eval('consistencyIssues()'); record('整合性','高齢受給者証＋70～74歳＋後期高齢者医療', lateIssues.some(x=>x.includes('高齢受給者証等'))?[]:['確認指摘が出ない']); late.close();
+
+  for (const [name, prep] of [
+    ['生活保護申請中＋医療券', pg=>{pg.set('publicAssistance','生活保護を申請中・相談中'); [...pg.$('heldCerts').querySelectorAll('input')].find(x=>x.value==='生活保護の医療券等').checked=true;}],
+    ['生活保護申請中＋障害者医療費助成証', pg=>{pg.set('publicAssistance','生活保護を申請中・相談中'); [...pg.$('heldCerts').querySelectorAll('input')].find(x=>x.value==='障害者医療費助成の受給者証').checked=true;}],
+    ['施設住まい＋支援者同居', pg=>{pg.set('living','施設・住まい系サービス'); pg.set('distance','同居');}],
+  ]) {
+    const pc=openPage(); prep(pc); const issues=pc.w.eval('consistencyIssues()');
+    const bad=issues.filter(x=>/矛盾|誤り|誤入力/.test(x)); record('整合性', name+'を矛盾断定しない', bad.length?['過剰断定: '+bad.join(' / ')]:[]); pc.close();
+  }
 }
 
 function testGates() {
