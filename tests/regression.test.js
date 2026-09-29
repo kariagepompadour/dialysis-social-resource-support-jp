@@ -85,6 +85,7 @@ const SPEC = {
     'それをAI独自の「緊急度」「緊急性」として表現しない。',
     '▼症例データ開始', '【ツールが入力時に表示した整合性の指摘】', '【元の質問アンケート結果】', '▲症例データ終了',
     'S1【検索軸の抽出】', 'S6【確認できない場合】',
+    '今回の重点調査対象外', 'すべて未選択の場合はS2の追加探索を行わず、S3の中核確認項目は必ず確認する。',
     '特に次は、該当し得る入力がある限り、H0を「？」とする前に国・都道府県・市区町村等の公式本文を検索する',
     '透析実施、診断名、証の有無等だけから対象疾病、障害等級、受給資格を推定してはならず',
     '取得可能性を断定せずに公式要件を確認する。',
@@ -407,6 +408,47 @@ function testRevisedQuestionsAndOutputOptions() {
   }
 }
 
+
+function testResearchScope() {
+  const p=openPage();p.consent();const f=[];
+  const core=[...p.$('coreResearchItems').querySelectorAll('input')];
+  const domains=[...p.$('researchDomains').querySelectorAll('input')];
+  if(core.length!==4||core.some(x=>!x.checked||!x.disabled))f.push('中核項目が4項目の固定チェックになっていない');
+  if(domains.length!==11||domains.some(x=>!x.checked||x.disabled))f.push('11領域が初期値ONの選択可能チェックになっていない');
+  p.set('desiredRoute','AIチャットで調べてからクリニックへ相談したい');p.set('age','70～74歳');p.text('municipality','東京都北区');p.set('dialysisType','施設血液透析');p.set('urgency','安定');
+  p.confirmAll();p.submit();let t=p.prompt();
+  if(!t.includes('- 詳しく調べる領域：介護保険、障害福祉、医療費助成・公費、所得保障・生活困窮、移動・透析通院、食事・服薬・家事・見守り、住居、介護者支援、就労、権利擁護、地域独自制度'))f.push('全ON時に11領域が相談文へ明示されない');
+  if(!t.includes('- 今回の重点調査対象外：なし'))f.push('全ON時の対象外表示がない');
+  domains.forEach(x=>x.checked=false);domains[4].checked=true;domains[6].checked=true;p.text('researchRequest','車椅子のまま利用できる移送手段を優先して調べる');p.confirmAll();p.submit();t=p.prompt();
+  if(!t.includes('- 詳しく調べる領域：移動・透析通院、住居'))f.push('一部ONの選択が相談文へ反映されない');
+  if(!t.includes('その他の調査リクエスト：車椅子のまま利用できる移送手段を優先して調べる'))f.push('自由リクエストが相談文へ反映されない');
+  if(!t.includes('選択されていない領域は「該当なし」「利用不可」と判断せず'))f.push('非選択領域を対象外判定しない規則がない');
+  domains.forEach(x=>x.checked=false);p.text('researchRequest','');p.confirmAll();p.submit();t=p.prompt();
+  if(!t.includes('- 詳しく調べる領域：なし（中核確認項目のみ）'))f.push('全OFF時に中核のみと明示されない');
+  if(!t.includes('すべて未選択の場合はS2の追加探索を行わず、S3の中核確認項目は必ず確認する'))f.push('全OFFでも中核確認を維持する指示がない');
+  // 全OFFでも共通の必須安全文（S3中核文を含む）とH0規則が残ること
+  f.push(...checkPrompt(t,expectedBranch(p.$('userType').value,p.$('desiredRoute').value),p).map(x=>'全OFF: '+x));
+  if(!t.includes('選択されていない領域は「今回の重点調査対象外」と明記し、「△」「該当なし」「利用不可」と扱わない。'))f.push('H0で非選択領域を△・該当なしと区別する規則がない');
+  // 自由リクエストの個人情報チェック
+  p.text('researchRequest','連絡先 03-1234-5678 に確認');p.confirmAll();p.submit();
+  if(p.prompt()||!p.$('piiStatus').textContent.includes('電話番号'))f.push('その他の調査リクエストの個人情報で停止しない');
+  // CSV往復（一部選択＋自由記載）と旧CSV（列なし→全ON）
+  domains.forEach(x=>x.checked=false);domains[1].checked=true;domains[9].checked=true;p.text('researchRequest','権利擁護を重点に');p.text('caseId','S1');
+  p.w.eval('savedCases=[captureCurrentCase()]');const csvText=p.w.eval('casesToCsvText()');
+  const q=openPage();q.consent();const qd=()=>[...q.$('researchDomains').querySelectorAll('input')];
+  qd().forEach(x=>x.checked=true);q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(csvText))[0]);
+  if(qd().filter(x=>x.checked).map(x=>x.value).join('、')!=='障害福祉、権利擁護'||q.$('researchRequest').value!=='権利擁護を重点に')f.push('CSV往復で調査範囲・追加リクエストが保持されない');
+  const legacy='\uFEFF識別コード,保存日時,年齢帯,居住市区町村\r\nL1,2026-09-01 10:00,70～74歳,東京都北区\r\n';
+  qd().forEach(x=>x.checked=false);q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(legacy))[0]);
+  if(qd().some(x=>!x.checked)||q.$('researchRequest').value)f.push('旧CSVで11領域全ON・追加リクエスト空欄にならない');
+  // ランダム症例で調査範囲が初期状態へ戻ること
+  qd().forEach(x=>x.checked=false);q.text('researchRequest','前の依頼');q.$('randomCaseBtn').click();
+  if(qd().some(x=>!x.checked)||q.$('researchRequest').value)f.push('ランダム症例で調査範囲が初期化されない');
+  f.push(...q.errors);q.close();
+  p.$('resetBtn').click();if([...p.$('researchDomains').querySelectorAll('input')].some(x=>!x.checked)||p.$('researchRequest').value)f.push('リセットで11領域全ON・自由記載空欄に戻らない');
+  record('調査範囲','中核固定・11領域選択・自由記載・全OFF',[...p.errors,...f]);p.close();
+}
+
 async function testMarkdownFlow() {
   const p=openPage();p.consent();const f=[];
   p.text('caseId','A001');p.set('desiredRoute','AIチャットで調べてからクリニックへ相談したい');p.set('age','70～74歳');p.text('municipality','東京都北区');p.set('dialysisType','施設血液透析');p.set('urgency','安定');p.confirmAll();p.submit();
@@ -451,7 +493,7 @@ function testRandom() {
 async function testCsvAndButtons() {
   const pg = openPage(SEED + 7);
   pg.consent();
-  const snap = p => { const o = {}; p.d.querySelectorAll('#caseForm select, #caseForm input[type=text], #caseForm textarea').forEach(e => { o[e.id] = e.value; }); ['heldCerts', 'supportTasks', 'services'].forEach(g => { o[g] = [...p.$(g).querySelectorAll('input:checked')].map(x => x.value).join('|'); }); return o; };
+  const snap = p => { const o = {}; p.d.querySelectorAll('#caseForm select, #caseForm input[type=text], #caseForm textarea').forEach(e => { o[e.id] = e.value; }); ['heldCerts', 'supportTasks', 'services', 'researchDomains'].forEach(g => { o[g] = [...p.$(g).querySelectorAll('input:checked')].map(x => x.value).join('|'); }); return o; };
   const saved = [];
   const extraNotes = ['', '=1+1 から始まる補足', '引用符"と、読点、改行\n二行目', '+先頭記号', ''];
   for (let i = 0; i < 5; i++) {
@@ -551,6 +593,7 @@ async function testCsvAndButtons() {
   testConsistency();
   testGates();
   testRevisedQuestionsAndOutputOptions();
+  testResearchScope();
   testRandom();
   await testCsvAndButtons();
   await testMarkdownFlow();
