@@ -61,7 +61,7 @@ const SPEC = {
     'R-1【根拠】', 'R-2【入力にない事実を作らない】', 'R-3【欠測の扱い】', 'R-4【AIが判定しないこと】',
     'R-3【欠測の扱い】「わからない・未入力」「未選択・未確認」「不明」「確認していない・分からない」は欠測であり、「なし」「対象外」「未利用」と扱わない。',
     'R-5【金額】', 'R-6【本人の状況の表現】', 'R-7【本人の意向】', 'R-8【検索できない場合】',
-    'R-9【候補化前の適用条件確認】', 'R-10【強い行動断定】', 'R-11【推定禁止と探索継続の両立】', 'R-12【費用感】',
+    'R-9【候補化前の適用条件確認】', 'R-10【強い行動断定】', 'R-11【推定禁止と探索継続の両立】', 'R-12【費用感】', 'R-13【支援者の所在】', 'R-14【医療的ケア・補助具の記載】',
     '対象外・制限条件の記載を公式本文で確認できない場合は、「制限なし」と扱わず',
     '見立てを「情報不足」とし',
     '公式本文そのものを確認できない候補はS6に従う。',
@@ -78,6 +78,11 @@ const SPEC = {
     '別途費用の記載を公式本文で確認できないことを「別途費用なし」と扱わない。',
     '1単位＝10円と仮定しない。',
     '同じチャット内で「週2回ならいくら」等の追加質問を受けた場合にも継続して適用する。',
+    '区分の目安は、近隣＝徒歩圏などすぐ駆けつけられる範囲（市区町村をまたぐ場合を含む）、周辺の市区町村＝同一市区町村外だが日常的に行き来できる範囲、遠方＝日常的な行き来が難しい範囲であり、入力者が選んだ目安として扱う。',
+    '区分から所要時間、実働頻度、送迎可能性を推定せず',
+    '「遠方」を支援不能と扱わず',
+    '「事業所へ前もって伝えたい医療的ケア・補助具」の記載から、診断名、障害種別、手帳の種別・等級、受給資格を推定しない',
+    '受け入れ不可」「利用不可」と断定せず',
     'その証の対象疾病名・対象障害・認定理由・所得区分は、入力に書かれていない限り「入力なし」として扱う。',
     '透析の方法だけから施設への通院回数を推定しない。',
     '(c) 入力された「在宅継続の緊急度」を、別の区分へ上書き・再判定しない。',
@@ -101,6 +106,10 @@ const SPEC = {
     '手元で確認できた証・受給者証（その他欄を含む）を抜き出す。',
     '特定疾病療養受療証等／手元で確認できた証・受給者証（その他欄を含む）／本人の希望／在宅継続の緊急度。',
     '③証・受給者証：0-0に転記した各証（その他欄を含む）について、対象疾病・認定理由を回答中で断定した箇所の有無',
+    '次の13行を「問題なし」の一語で済ませず',
+    '⑫支援者の所在：', '⑬医療的ケア・補助具：',
+    '支援者の所在区分から所要時間・実働頻度・送迎可能性を推定していないか（R-13）',
+    '医療的ケア・補助具の記載から診断名・障害種別・等級・資格を推定せず、受け入れ可否を断定していないか（R-14）',
   ],
   // v4.31 R-12：意味を持つ条項（見出しだけでなく中身を固定）
   costClauses: [
@@ -124,7 +133,7 @@ const SPEC = {
   ],
   // 順序：前の文字列が後の文字列より先に現れること
   order: [
-    ['R-11【', 'R-12【費用感】', '第2部　用語の定義'],
+    ['R-11【', 'R-12【費用感】', 'R-13【支援者の所在】', 'R-14【医療的ケア・補助具の記載】', '第2部　用語の定義'],
     ['S5【照合と候補化】', 'S5.5【候補決定後の費用調査】', 'S6【確認できない場合】'],
     ['\nB. 検討する制度・サービス候補', '\nB-費用. ', '\nC. 短期・中期'],
   ],
@@ -264,6 +273,11 @@ function testLoad() {
     if(!pg.$('heldCertsOther')||!heldPanel.contains(pg.$('heldCertsOther'))) f.push('その他の証・受給者証の自由入力欄がない');
     if(!heldPanel.textContent.includes('上の選択肢にない証・受給者証があれば、名称だけ入力してください。氏名、記号・番号、有効期限、発行番号などは入力しないでください。')) f.push('その他欄の名称限定・個人情報注意文がない');
   }
+  if(!pg.$('careDevices')||pg.$('careDevices').maxLength!==100) f.push('医療的ケア・補助具の100字自由記載欄がない');
+  const distanceOptions=[...pg.$('distance').options], distanceValues=distanceOptions.map(o=>o.value);
+  if(!distanceValues.includes('周辺の市区町村')||!distanceValues.includes('近隣')||!distanceValues.includes('遠方')) f.push('支援者所在地の新分類または旧CSV互換値がない');
+  const nearby=distanceOptions.find(o=>o.value==='近隣'), surrounding=distanceOptions.find(o=>o.value==='周辺の市区町村'), far=distanceOptions.find(o=>o.value==='遠方');
+  if(!nearby?.textContent.includes('すぐ駆けつけられる')||!surrounding?.textContent.includes('日常的に行き来できる')||!far?.textContent.includes('日常的な行き来は難しい')) f.push('支援者所在地の表示上の目安が不足している');
   pg.$('useRulesConfirm').checked = false; pg.$('useRulesConfirm').dispatchEvent(new pg.w.Event('change', { bubbles: true }));
   if (!pg.$('markdownPanel').classList.contains('hidden')) f.push('同意解除後もMarkdown保存区画が表示されている');
   record('起動', '読み込み・利用条件への同意・Markdown表示ゲート', f);
@@ -350,6 +364,9 @@ function testConsistency() {
     ['生活保護申請中＋障害者医療費助成証', pg => { pg.set('publicAssistance','生活保護を申請中・相談中'); [...pg.$('heldCerts').querySelectorAll('input')].find(x=>x.value==='障害者医療費助成の受給者証').checked=true; }, '現在の適用状況'],
     ['車椅子乗車必要＋歩行器', pg => { pg.set('boarding','車椅子のまま乗車が必要'); pg.set('wheelchair','歩行器'); }, '場面による使い分け'],
     ['施設住まい＋支援者同居', pg => { pg.set('living','施設・住まい系サービス'); pg.set('distance','同居'); }, '入力の意味を確認'],
+    ['支援者同居＋制約遠距離', pg => { pg.set('supporter','配偶者'); pg.set('distance','同居'); pg.set('supporterBarrier','遠距離'); }, '入力の意味を確認'],
+    ['支援者近隣＋制約遠距離', pg => { pg.set('supporter','配偶者'); pg.set('distance','近隣'); pg.set('supporterBarrier','遠距離'); }, '入力の意味を確認'],
+    ['支援者なし＋所在地同居', pg => { pg.set('supporter','いない'); pg.set('distance','同居'); }, '支援者の有無と所在地'],
   ];
   for (const [name, prep, expected] of consistencyCases) {
     const pc = openPage();
@@ -367,6 +384,8 @@ function testConsistency() {
   const noWarnCases = [
     ['高齢受給者証＋70～74歳＋国民健康保険', pg => { pg.set('age','70～74歳'); pg.set('healthInsurance','国民健康保険'); [...pg.$('heldCerts').querySelectorAll('input')].find(x=>x.value==='高齢受給者証等').checked=true; }],
     ['年齢未入力＋高齢受給者証', pg => { pg.set('age','わからない・未入力'); [...pg.$('heldCerts').querySelectorAll('input')].find(x=>x.value==='高齢受給者証等').checked=true; }],
+    ['周辺＋制約遠距離', pg => { pg.set('supporter','配偶者'); pg.set('distance','周辺の市区町村'); pg.set('supporterBarrier','遠距離'); }],
+    ['遠方＋制約遠距離', pg => { pg.set('supporter','配偶者'); pg.set('distance','遠方'); pg.set('supporterBarrier','遠距離'); }],
   ];
   for (const [name, prep] of noWarnCases) {
     const pc = openPage(); pc.consent(); pc.set('userType', V.staffUser); pc.set('desiredRoute', V.staffRoute); pc.text('municipality','東京都北区'); pc.set('dialysisType','施設血液透析'); pc.set('urgency','安定'); prep(pc);
@@ -467,20 +486,33 @@ async function testResearchScope() {
   p.text('heldCertsOther','石川県心身障害者医療費助成受給者証');p.text('municipality','石川県金沢市');p.confirmAll();p.submit();if(!p.prompt())f.push('自治体名入りの証名・市区町村を氏名と誤検出する');
   p.text('heldCertsOther','令和8年度 福祉医療証');p.text('municipality','東京都北区 山田太郎');p.confirmAll();p.submit();if(p.prompt())f.push('市区町村欄の氏名らしき表現で停止しない');
 
+  // v4.36 医療的ケア・補助具：相談文・PII・AI追加確認
+  p.text('municipality','東京都北区');p.text('careDevices','');p.text('heldCertsOther','');p.confirmAll();p.submit();
+  if(!p.prompt().includes('事業所へ前もって伝えたい医療的ケア・補助具：記載なし'))f.push('医療的ケア・補助具の空欄が記載なしにならない');
+  p.text('careDevices','在宅酸素、補聴器');p.confirmAll();p.submit();
+  if(!p.prompt().includes('事業所へ前もって伝えたい医療的ケア・補助具：在宅酸素、補聴器'))f.push('医療的ケア・補助具が相談文へ反映されない');
+  if(!p.$('clinicMemo').value.includes('事業所へ前もって伝えたい医療的ケア・補助具：在宅酸素、補聴器'))f.push('相談メモに医療的ケア・補助具が反映されない');
+  p.confirmAll();if(p.$('piiAiCheckBtn').disabled)f.push('医療的ケア・補助具だけではAI追加確認ボタンが有効にならない');
+  p.w.__clip=null;p.$('piiAiCheckBtn').click();await new Promise(r=>setTimeout(r,0));if(!(p.w.__clip||'').includes('【サービスを使うとき事業所へ前もって伝えたい医療的ケア・補助具】\n在宅酸素、補聴器'))f.push('AI追加確認文に医療的ケア・補助具が入らない');
+  p.text('careDevices','連絡先 03-1234-5678');p.confirmAll();p.submit();if(p.prompt()||!p.$('piiStatus').textContent.includes('電話番号'))f.push('医療的ケア・補助具欄の個人情報で停止しない');
+  p.text('careDevices','在宅酸素');
+
   // CSV往復（一部選択＋自由記載）と旧CSV（列なし→全ON）
   domains.forEach(x=>x.checked=false);domains[1].checked=true;domains[9].checked=true;p.text('researchRequest','権利擁護を重点に');p.text('heldCertsOther','自治体独自医療証');p.text('caseId','S1');
   p.w.eval('savedCases=[captureCurrentCase()]');const csvText=p.w.eval('casesToCsvText()');
   const q=openPage();q.consent();const qd=()=>[...q.$('researchDomains').querySelectorAll('input')];
   qd().forEach(x=>x.checked=true);q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(csvText))[0]);
-  if(qd().filter(x=>x.checked).map(x=>x.value).join('、')!=='障害福祉、権利擁護'||q.$('researchRequest').value!=='権利擁護を重点に'||q.$('heldCertsOther').value!=='自治体独自医療証')f.push('CSV往復で調査範囲・追加リクエスト・その他の証が保持されない');
+  if(qd().filter(x=>x.checked).map(x=>x.value).join('、')!=='障害福祉、権利擁護'||q.$('researchRequest').value!=='権利擁護を重点に'||q.$('heldCertsOther').value!=='自治体独自医療証'||q.$('careDevices').value!=='在宅酸素')f.push('CSV往復で調査範囲・追加リクエスト・その他の証・医療的ケア補助具が保持されない');
+  p.set('distance','周辺の市区町村');p.w.eval('savedCases=[captureCurrentCase()]');const csvSurrounding=p.w.eval('casesToCsvText()');q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(csvSurrounding))[0]);if(q.$('distance').value!=='周辺の市区町村')f.push('周辺の市区町村がCSV往復で保持されない');
+  for(const d of ['近隣','遠方']){const legacyDistance=`\uFEFF識別コード,保存日時,支援者の居住地・活動拠点\r\nLD,2026-09-01 10:00,${d}\r\n`;const c=q.w.eval('rowsToCases')(q.w.eval('parseCSV')(legacyDistance))[0];q.w.eval('applyCaseToForm')(c);if(q.$('distance').value!==d)f.push(`旧CSVの${d}が保持されない`);if(d==='遠方'&&!q.$('piiStatus').textContent.includes('周辺の市区町村'))f.push('旧CSVの遠方で再確認メッセージが出ない');}
   const legacy='\uFEFF識別コード,保存日時,年齢帯,居住市区町村\r\nL1,2026-09-01 10:00,70～74歳,東京都北区\r\n';
   qd().forEach(x=>x.checked=false);q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(legacy))[0]);
-  if(qd().some(x=>!x.checked)||q.$('researchRequest').value||q.$('heldCertsOther').value)f.push('旧CSVで11領域全ON・追加リクエスト・その他の証が空欄にならない');
+  if(qd().some(x=>!x.checked)||q.$('researchRequest').value||q.$('heldCertsOther').value||q.$('careDevices').value)f.push('旧CSVで11領域全ON・追加リクエスト・その他の証・医療的ケア補助具が空欄にならない');
   // ランダム症例で調査範囲が初期状態へ戻ること
-  qd().forEach(x=>x.checked=false);q.text('researchRequest','前の依頼');q.text('heldCertsOther','前の医療証');q.$('randomCaseBtn').click();
-  if(qd().some(x=>!x.checked)||q.$('researchRequest').value||q.$('heldCertsOther').value)f.push('ランダム症例で調査範囲・その他の証が初期化されない');
+  qd().forEach(x=>x.checked=false);q.text('researchRequest','前の依頼');q.text('heldCertsOther','前の医療証');q.text('careDevices','前の在宅酸素');q.$('randomCaseBtn').click();
+  if(qd().some(x=>!x.checked)||q.$('researchRequest').value||q.$('heldCertsOther').value||q.$('careDevices').value)f.push('ランダム症例で調査範囲・その他の証・医療的ケア補助具が初期化されない');
   f.push(...q.errors);q.close();
-  p.$('resetBtn').click();if([...p.$('researchDomains').querySelectorAll('input')].some(x=>!x.checked)||p.$('researchRequest').value||p.$('heldCertsOther').value)f.push('リセットで11領域全ON・自由記載・その他の証が空欄に戻らない');
+  p.$('resetBtn').click();if([...p.$('researchDomains').querySelectorAll('input')].some(x=>!x.checked)||p.$('researchRequest').value||p.$('heldCertsOther').value||p.$('careDevices').value)f.push('リセットで11領域全ON・自由記載・その他の証・医療的ケア補助具が空欄に戻らない');
   record('調査範囲','中核固定・11領域選択・自由記載・全OFF',[...p.errors,...f]);p.close();
 }
 
@@ -488,7 +520,7 @@ async function testMarkdownFlow() {
   const p=openPage();p.consent();const f=[];
   p.text('caseId','A001');p.set('desiredRoute','AIチャットで調べてからクリニックへ相談したい');p.set('age','70～74歳');p.text('municipality','東京都北区');p.set('dialysisType','施設血液透析');p.set('urgency','安定');p.confirmAll();p.submit();
   p.$('copyResearchBtn').click();await new Promise(r=>setTimeout(r,0));
-  if (!p.$('markdownFilename').value.match(/^A001_\d{8}-\d{6}\.md$/)) f.push('識別コード＋日時のファイル名にならない');
+  if (!p.$('markdownFilename').value.match(/^A001_\d{8}-\d{6}_v\d+\.\d+(?:\.\d+)?\.md$/)) f.push('識別コード＋日時＋版番号のファイル名にならない');
   p.w.__clipboardReadFails=true;p.$('importClipboardBtn').click();await new Promise(r=>setTimeout(r,0));
   p.text('markdownContent','# 手動で貼り付けたAI回答');p.set('age','65～69歳');
   if (p.$('markdownContent').value!=='# 手動で貼り付けたAI回答') f.push('手動貼り付けしたAI回答が入力変更で消える');
@@ -500,7 +532,7 @@ async function testMarkdownFlow() {
   p.w.__clip='# AIの回答\n本文';p.$('importClipboardBtn').click();await new Promise(r=>setTimeout(r,0));
   if (p.$('markdownContent').value!==p.w.__clip) f.push('AI回答の取り込みに失敗');
   p.text('markdownFilename','A001_相談結果.md');const n=p.w.__downloads.length;p.$('saveMarkdownBtn').click();
-  if (p.w.__downloadNames[n]!=='A001_相談結果.md' || await p.w.__downloads[n].text()!=='# AIの回答\n本文') f.push('編集したファイル名・内容でMarkdown保存されない');
+  {const saved=await p.w.__downloads[n].text();if(p.w.__downloadNames[n]!=='A001_相談結果.md'||!/^ツールバージョン：v\d+\.\d+(?:\.\d+)?\n\n# AIの回答\n本文$/.test(saved)) f.push('編集したファイル名・内容でMarkdown保存されない');}
   p.w.__clipboardReadFails=true;p.$('importClipboardBtn').click();await new Promise(r=>setTimeout(r,0));
   if (!p.$('markdownStatus').textContent.includes('手動で貼り付け')) f.push('クリップボード権限拒否時の手動貼付案内がない');
   p.text('markdownContent','手動で貼り付けた内容');p.text('markdownFilename','回答');const n2=p.w.__downloads.length;p.$('saveMarkdownBtn').click();
@@ -614,8 +646,8 @@ async function testCsvAndButtons() {
   if (pg.w.__clip !== pg.prompt()) g.push('コピー内容が相談文と一致しない');
   if (pg.$('markdownContent').value !== pg.prompt() || !pg.$('markdownDetails').open) g.push('コピー後にMarkdown確認欄へ相談文が表示されない');
   const k = pg.w.__downloads.length; pg.$('saveMarkdownBtn').click();
-  if (!pg.w.__downloads[k] || await pg.w.__downloads[k].text() !== pg.prompt()) g.push('Markdown保存内容が相談文と一致しない');
-  if (!/^\d{8}-\d{6}\.md$/.test(pg.w.__downloadNames[k])) g.push('識別コードなしのファイル名が日時.mdにならない');
+  if (!pg.w.__downloads[k]) g.push('Markdown保存が実行されない'); else {const saved=await pg.w.__downloads[k].text();if(!/^ツールバージョン：v\d+\.\d+(?:\.\d+)?\n\n/.test(saved)||!saved.endsWith(pg.prompt())) g.push('Markdown保存内容に版番号と相談文が正しく入らない');}
+  if (!/^\d{8}-\d{6}_v\d+\.\d+(?:\.\d+)?\.md$/.test(pg.w.__downloadNames[k])) g.push('識別コードなしのファイル名が日時＋版番号.mdにならない');
   pg.$('printBtn').click(); if (!pg.w.__printed) g.push('印刷が呼ばれない');
   pg.set('age', '40～64歳');
   if (!pg.$('resultPanel').classList.contains('hidden') || pg.prompt()) g.push('入力変更後に古い相談文が残っている');
