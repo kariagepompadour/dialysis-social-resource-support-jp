@@ -37,11 +37,18 @@
     <label class="check"><input type="checkbox" id="useRulesConfirm">上記の利用条件を確認し、同意します。</label>
   </div>
   <p class="hint" id="startGateStatus">上記の利用条件への同意後、症例条件を入力できます。</p>
-  <div class="notice"><strong>分からない項目はそのままで構いません</strong>制度名や介護用語が分からなくても、「わからない・未入力」のまま生成できます。AIには、未入力を正常・自立・支援不要と解釈せず、現時点の候補、追加質問、確認先を示すよう指示します。</div>
   <ol class="steps"><li class="active">1 条件入力・安全確認</li><li>2 相談文生成・コピー</li></ol>
   <form id="caseForm" novalidate><fieldset id="inputGate" class="hidden" disabled>
-    <section class="panel"><h2>入力の手間を省いて試験する場合</h2><p class="lead">個人情報を含まない人工的な架空症例をランダムに入力し、通常の手入力時と同じAIチャット相談文まで自動生成します。実在患者を基にした情報は使用しません。</p><div class="actions"><button class="btn secondary" id="randomCaseBtn" type="button">ランダム架空症例を作成して相談文まで生成</button></div></section>
-    <section class="panel"><h2>保存済み条件（CSVファイル）を読み込む場合</h2><p class="lead">以前「条件を保存」で書き出したCSVファイルを選択すると、識別コードごとに条件を選んでフォームへ呼び出せます。ファイルはこの端末内で読み込むだけで、外部へは送信されません。</p><div class="actions"><input type="file" id="caseFileInput" accept=".csv,text/csv"></div><p class="hint" id="caseLoadStatus" aria-live="polite"></p><div id="savedCasesList" class="saved-cases hidden"></div></section>
+    <details class="optional-details" id="randomCaseDetails"><summary>入力の手間を省いて試験する場合</summary><div class="detail-hint"><p>個人情報を含まない人工的な架空症例をランダムに入力し、通常の手入力時と同じAIチャット相談文まで自動生成します。実在患者を基にした情報は使用しません。</p><div class="actions"><button class="btn secondary" id="randomCaseBtn" type="button">ランダム架空症例を作成して相談文まで生成</button></div></div></details>
+    <details class="optional-details" id="savedCaseDetails"><summary>保存済み条件（CSVファイル）を読み込む場合</summary><div class="detail-hint"><p>以前「条件を保存」で書き出したCSVファイルを選択すると、識別コードごとに条件を選んでフォームへ呼び出せます。ファイルはこの端末内で読み込むだけで、外部へは送信されません。</p><div class="actions"><input type="file" id="caseFileInput" accept=".csv,text/csv"></div><p class="hint" id="caseLoadStatus" aria-live="polite"></p><div id="savedCasesList" class="saved-cases hidden"></div></div></details>
+  <div class="notice" id="inputGuidance">
+    <strong>分からない項目はそのままで構いません</strong>
+    <div>制度名や介護用語が分からなくても、「わからない・未入力」のまま生成できます。AIには、未入力を正常・自立・支援不要と解釈せず、現時点の候補、追加質問、確認先を示すよう指示します。</div>
+    <strong style="margin-top:16px">入力項目についてのお願い</strong>
+    <div>質問項目が多く、入力を負担に感じられるかもしれません。<br>
+    これらは、医療機関で社会資源の利用について相談する際に、確認が必要となる重要な項目です。<br>
+    利用できる制度や支援をできるだけ見落とさず、患者さんの状況に合った社会資源を探すため、お手数ですがご入力をお願いいたします。</div>
+  </div>
     <section class="panel"><h2>入力担当者と架空症例の条件</h2><p class="lead">公開評価版は、人工的に作成した架空症例のテストに使用します。分からない項目は空欄相当のままで構いません。生成内容が自動的に製作者やクリニックへ送信されることはありません。</p><div class="grid three">
       <div class="field"><label for="userType">入力する方</label><select id="userType"><option>患者本人</option><option>家族・支援者</option><option>クリニック職員</option><option>その他</option></select></div>
       <div class="field"><label for="desiredRoute">希望する使い方</label><select id="desiredRoute"><option>クリニックへ相談メモを持参したい</option><option>AIチャットで調べてからクリニックへ相談したい</option><option>クリニック職員がAIチャットで候補を調べたい</option><option>まだ決めていない</option></select></div>
@@ -164,7 +171,7 @@
 </main>
 <footer>公開評価版 <span id="toolVersionFooter"></span>　架空症例専用です。実患者情報を用いる運用は対象外であり、公開利用者の入力内容やAI回答を作成者・公開者が収集することはありません。<br>Copyright (c) 2026 Hiromasa Akimoto　—　MIT License</footer>
 <script>
-  const TOOL_VERSION="4.37";
+  const TOOL_VERSION="4.38";
   const TOOL_VERSION_LABEL=`v${TOOL_VERSION}`;
   document.getElementById("toolVersionBadge").textContent=TOOL_VERSION_LABEL;
   document.getElementById("toolVersionFooter").textContent=TOOL_VERSION;
