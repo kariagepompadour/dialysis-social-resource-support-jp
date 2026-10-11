@@ -84,7 +84,7 @@ const SPEC = {
     '「事業所へ前もって伝えたい医療的ケア・補助具」の記載から、診断名、障害種別、手帳の種別・等級、受給資格を推定しない',
     '受け入れ不可」「利用不可」と断定せず',
     'その証の対象疾病名・対象障害・認定理由・所得区分は、入力に書かれていない限り「入力なし」として扱う。',
-    '透析の方法だけから施設への通院回数を推定しない。',
+    '腎代替療法の入力だけから施設への通院回数を推定しない。',
     '(c) 入力された「在宅継続の緊急度」を、別の区分へ上書き・再判定しない。',
     '住民税の「課税／非課税」の入力だけでは所得区分が確定しない制度では、区分未確定として扱う。',
     '- 特定疾病の区別：',
@@ -112,7 +112,7 @@ const SPEC = {
     '医療的ケア・補助具の記載から診断名・障害種別・等級・資格を推定せず、受け入れ可否を断定していないか（R-14）',
     '- 制度外の通常手段：透析施設の送迎、家族送迎、一般タクシー等。',
     '利用状況や普及率を推測しない。',
-    '制度上利用可能でも、入力（現在手段の継続性、透析後の状態、補足等）から現在の手段や制度外の通常手段で足りていると読める場合はその旨を書き、置き換えを前提にしない。入力が欠測の場合は足りていると扱わず要確認とする。',
+    '制度上利用可能でも、入力（送迎手段の継続性、透析後の状態、補足等）から現在の手段や制度外の通常手段で足りていると読める場合はその旨を書き、置き換えを前提にしない。入力が欠測の場合は足りていると扱わず要確認とする。',
     '一般的でない候補も、入力上の困り事への具体的な利点を示せれば残し、利用の多寡や利用されない理由は推測しない。',
     '現在の手段との関係・代替',
     '根拠要約の末尾に「所在：」として、主要な根拠が載る見出し・表名を本文の表記のまま書く',
@@ -153,17 +153,24 @@ const SPEC = {
     /順位付けに費用|費用(も|を)考慮して(順位|並べ|絞)/,
     /候補は省略/,
   ],
-  forbidden: [/undefined/, /\$\{/, /\[object /, /NaN/, /透析(実施|中)?(から|なら|のため).{0,12}(対象|該当)として扱/, /使えない場合の代替/],
+  forbidden: [/undefined/, /\$\{/, /\[object /, /NaN/, /透析(実施|中)?(から|なら|のため).{0,12}(対象|該当)として扱/, /使えない場合の代替/, /現在手段の継続性/, /透析の方法(だけから|そのもの|」の入力)/],
   // 誤検出してはいけない一般的な補足文
   piiShouldPass: [
     '週3回透析。第2号被保険者か確認したい。', '透析クリニックと総合病院の連携で順番待ち。週3-4回の送迎が必要。',
     '受給者番号は分からない。', '家族送迎が来月頃に終了予定。', '階段は3段ある', '１日2回の服薬確認',
     '朝9時30分に送迎', 'バス停まで300m', '年金は月8万円程度', '石川県の助成を調べたい',
+    // v4.39：一般的な文章の誤検出（C-3）
+    '夫は会社員で日中不在', '訪問看護事業所と相談中', '近くの薬局で一包化', '子どもが学校に通う',
+    '1-2か月後に家族送迎が終了', '70-74歳の配偶者', '急性期病院から退院', '居宅介護支援事業所のケアマネジャーに相談中',
+    '就労継続支援B型事業所に通所', '３－４級相当か確認したい', '週３回透析、１日２回の服薬確認', '家族が送迎してくれる介護事業所を探す', 'かかりつけの薬局',
   ],
   // 必ず停止すべき補足文
   piiShouldBlock: [
     '連絡先は090-1234-5678', 'メール test@example.com', '住所は王子1丁目2番3号', '氏名：テスト',
     '患者ID: A12345', '昭和20年3月4日生まれ', '山田太郎さんの送迎',
+    // v4.39：全角文字の検出漏れ（C-2）と、誤検出対策後も止めるべき固有名
+    '連絡先は０９０－１２３４－５６７８', '電話０３１２３４５６７８', '２０２６年１０月１１日に退院', 'ｔａｒｏ＠ｅｘａｍｐｌｅ．ｃｏｍ',
+    '患者ＩＤ：Ａ１２３４５', 'さくら薬局で受け取り', 'ABC商事株式会社に勤務', 'ABC訪問看護事業所を利用', 'ひかり訪問看護事業所に相談', '住所は王子1-23',
   ],
   municipalityShouldPass: ['東京都北区', '北海道札幌市中央区', '京都府京都市上京区', '大阪府堺市北区', '長野県下伊那郡阿智村', '石川県金沢市', '山口県下関市', '長野県松本市', '名古屋市中村区', '山田町'],
 };
@@ -664,6 +671,143 @@ async function testCsvAndButtons() {
   pg.close();
 }
 
+// v4.39 監査指摘（C-1〜C-5、A、D-1〜D-5、D-8）の回帰テスト
+async function testV439() {
+  const tick = (ms = 50) => new Promise(r => setTimeout(r, ms));
+  const loadCsv = async (pg, text) => {
+    const file = new pg.w.File([text], 'cases.csv', { type: 'text/csv' });
+    Object.defineProperty(pg.$('caseFileInput'), 'files', { value: [file], configurable: true });
+    pg.$('caseFileInput').dispatchEvent(new pg.w.Event('change', { bubbles: true }));
+    await tick(150);
+    return pg.$('caseLoadStatus').textContent;
+  };
+  const baseAI = pg => { pg.set('desiredRoute', 'AIチャットで調べてからクリニックへ相談したい'); pg.set('age', '70～74歳'); pg.text('municipality', '東京都北区'); pg.set('dialysisType', '施設血液透析'); pg.set('urgency', '安定'); };
+
+  // A：出力設定2項目のCSV保存・復元と旧CSVの既定値
+  {
+    const f = [];
+    const p = openPage(); p.consent(); baseAI(p); p.text('caseId', 'OPT1');
+    p.$('includeOriginalInAnswer').checked = false; p.$('includeAbbreviationsInAnswer').checked = false;
+    p.confirmAll(); p.submit(); const prompt = p.prompt();
+    p.w.eval('savedCases=[captureCurrentCase()]'); const csv = p.w.eval('casesToCsvText()');
+    const header = p.w.eval('parseCSV')(csv)[0];
+    if (header.slice(-2).join('|') !== 'AI回答に元の質問アンケート結果を表示|AI回答に略称対応表を表示') f.push('出力設定2列がCSV末尾にない: ' + header.slice(-2).join('|'));
+    const q = openPage(); q.consent();
+    q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(csv))[0]);
+    if (q.$('includeOriginalInAnswer').checked || q.$('includeAbbreviationsInAnswer').checked) f.push('出力設定「なし」がCSV往復で復元されない');
+    q.confirmAll(); q.submit(); if (q.prompt() !== prompt) f.push('出力設定を含むCSV往復後に相談文が一致しない');
+    const legacy = '﻿識別コード,保存日時,年齢帯\r\nL1,202609011000,70～74歳\r\n';
+    q.$('includeOriginalInAnswer').checked = false; q.$('includeAbbreviationsInAnswer').checked = false;
+    q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(legacy))[0]);
+    if (!q.$('includeOriginalInAnswer').checked || !q.$('includeAbbreviationsInAnswer').checked) f.push('出力設定列のない旧CSVで両方「あり」にならない');
+    record('v4.39', 'A 出力設定2項目のCSV保存・復元・旧CSV既定値', [...p.errors, ...q.errors, ...f]); p.close(); q.close();
+  }
+
+  // C-1：同じ識別コード・同じ保存日時でも内容が違う記録を消さない
+  {
+    const f = [];
+    const p = openPage(); p.consent(); p.text('caseId', 'A001'); p.set('age', '70～74歳');
+    const mk = notes => { p.text('notes', notes); const c = p.w.eval('captureCurrentCase()'); c.savedAt = '202610111230'; return c; };
+    p.w.eval('savedCases').push(mk('v1')); const csv1 = p.w.eval('casesToCsvText()');
+    p.w.eval('savedCases').push(mk('v2')); const csv2 = p.w.eval('casesToCsvText()');
+    const q = openPage(); q.consent();
+    await loadCsv(q, csv1); const st = await loadCsv(q, csv2);
+    const notes = q.w.eval('savedCases.map(c=>c.notes)').sort().join(',');
+    if (notes !== 'v1,v2') f.push('同一キー・別内容の記録が消えた: ' + notes);
+    if (!st.includes('1件の条件を読み込みました（1件は読み込み済みと同一')) f.push('重複件数の表示が不正: ' + st);
+    const st2 = await loadCsv(q, csv2); if (!st2.startsWith('0件') || q.w.eval('savedCases.length') !== 2) f.push('同じファイルの再読込で重複が増えた: ' + st2);
+    const dupRow = csv1.trimEnd().split('\r\n')[1];
+    const r = openPage(); r.consent(); const st3 = await loadCsv(r, csv1.trimEnd() + '\r\n' + dupRow + '\r\n');
+    if (!st3.startsWith('1件') || r.w.eval('savedCases.length') !== 1) f.push('同一ファイル内の完全重複が除外されない: ' + st3);
+    const stamp = p.w.eval('captureCurrentCase().savedAt');
+    if (!/^\d{14}$/.test(stamp)) f.push('保存日時が秒まで記録されない: ' + stamp);
+    if (p.w.eval(`formatStamp('${stamp}')`).length !== 19) f.push('秒付き保存日時の表示が不正');
+    if (p.w.eval(`formatStamp('202610111230')`) !== '2026-10-11 12:30') f.push('旧形式（分単位）保存日時の表示が変わった');
+    record('v4.39', 'C-1 同一キー別内容の保持・完全重複の除外・秒単位の保存日時', [...p.errors, ...q.errors, ...r.errors, ...f]); p.close(); q.close(); r.close();
+  }
+
+  // B・D-2・D-8：改行コードと引用符
+  {
+    const f = [];
+    const p = openPage(); p.consent();
+    for (const [name, eol] of [['CRLF', '\r\n'], ['LF', '\n'], ['CR', '\r']]) {
+      const n = p.w.eval('rowsToCases')(p.w.eval('parseCSV')(['識別コード,保存日時,年齢帯', 'A1,202610111230,70～74歳', 'A2,202610111231,75～84歳'].join(eol) + eol)).length;
+      if (n !== 2) f.push(`${name}改行のCSVが2件読めない（${n}件）`);
+    }
+    const row = p.w.eval('toCsvRow')(['x\ry', 'z']);
+    const back = p.w.eval('parseCSV')('a,b\r\n' + row + '\r\n')[1];
+    if (back[0] !== 'x\ry' || back[1] !== 'z') f.push('値中の単独CRが往復で保たれない: ' + JSON.stringify(back));
+    p.w.eval('savedCases=[]');
+    const st = await loadCsv(p, '﻿識別コード,保存日時,補足\r\nQ1,202610111230,"閉じない引用符\r\nQ2,202610111231,次の行\r\n');
+    if (!st.includes('引用符') || p.w.eval('savedCases.length') !== 0) f.push('閉じていない引用符で読み込みを中止しない: ' + st);
+    record('v4.39', 'B・D-2・D-8 CR/LF/CRLF・値中CR・閉じない引用符', [...p.errors, ...f]); p.close();
+  }
+
+  // C-5：CSVファイルを選んでも生成済み相談文を消さない
+  {
+    const f = [];
+    const p = openPage(); p.consent(); baseAI(p); p.confirmAll(); p.submit();
+    const before = p.prompt(); if (!before) f.push('テスト前提: 相談文が生成されない');
+    p.$('copyResearchBtn').click(); await tick();
+    const legacy = '﻿識別コード,保存日時,年齢帯\r\nL1,202609011000,70～74歳\r\n';
+    await loadCsv(p, legacy);
+    if (p.prompt() !== before || p.$('resultPanel').classList.contains('hidden')) f.push('CSV選択で生成済み相談文が消えた');
+    if (p.$('markdownContent').value !== before) f.push('CSV選択でMarkdown確認欄の相談文が消えた');
+    p.set('age', '65～69歳');
+    if (p.prompt() || !p.$('resultPanel').classList.contains('hidden')) f.push('通常の入力変更で古い相談文が破棄されない');
+    record('v4.39', 'C-5 CSV選択時の相談文保持と通常入力変更時の破棄', [...p.errors, ...f]); p.close();
+  }
+
+  // C-4：相談文の項目名が症例データ行と一致する
+  {
+    const f = [];
+    const p = openPage(); p.consent(); baseAI(p); p.confirmAll(); p.submit(); const t = p.prompt();
+    for (const s of ['- 腎代替療法：', '- 送迎手段の継続性：', '腎代替療法の入力だけから', '「腎代替療法」の入力から扱う', '入力（送迎手段の継続性、']) if (!t.includes(s)) f.push('項目名の対応が見つからない: ' + s);
+    for (const s of ['透析の方法', '現在手段の継続性']) if (t.includes(s)) f.push('症例データにない項目名が相談文に残る: ' + s);
+    const csvHeader = p.w.eval('csvHeaderRow()');
+    for (const h of ['腎代替療法', '送迎手段の継続性']) if (!csvHeader.includes(h)) f.push('CSV見出しが変わった（旧CSV互換性）: ' + h);
+    record('v4.39', 'C-4 相談文の項目名と症例データ・CSV見出しの一致', [...p.errors, ...f]); p.close();
+  }
+
+  // D-1：年齢未入力では「40～64歳以外」の指摘を出さない
+  {
+    const f = [];
+    const p = openPage(); p.consent(); p.set('specifiedDisease16', '関係ありと確認済み');
+    if (p.w.eval('consistencyIssues()').some(x => x.includes('40～64歳以外'))) f.push('年齢未入力で「40～64歳以外」と指摘する');
+    p.set('age', '70～74歳'); if (!p.w.eval('consistencyIssues()').some(x => x.includes('40～64歳以外'))) f.push('70～74歳＋16特定疾病入力で指摘が出ない');
+    record('v4.39', 'D-1 年齢未入力時の16特定疾病指摘', [...p.errors, ...f]); p.close();
+  }
+
+  // D-3：AI追加確認のコピー失敗を成功と表示しない
+  {
+    const f = [];
+    const p = openPage(); p.consent(); p.text('notes', '透析後にふらつく'); p.confirmAll();
+    p.w.navigator.clipboard.writeText = async () => { throw new Error('denied'); }; p.w.document.execCommand = () => false;
+    p.$('piiAiCheckBtn').click(); await tick();
+    if (!p.status().includes('コピーできませんでした') || !p.$('piiStatus').classList.contains('bad')) f.push('コピー失敗時に失敗表示にならない: ' + p.status());
+    p.w.document.execCommand = () => true; p.$('piiAiCheckBtn').click(); await tick();
+    if (!p.status().includes('コピーしました')) f.push('代替コピー成功時に成功表示にならない');
+    record('v4.39', 'D-3 AI追加確認コピーの失敗表示', [...p.errors, ...f]); p.close();
+  }
+
+  // D-4：数字だけの識別コードを電話番号と誤検出しない（電話番号そのものは止める）
+  for (const [id, ok] of [['0012345', true], ['A001', true], ['09012345678', false], ['03-1234-5678', false]]) {
+    const p = openPage(); p.consent(); baseAI(p); p.text('caseId', id); p.confirmAll(); p.submit();
+    record('v4.39', `D-4 識別コード「${id}」${ok ? '通過' : '停止'}`, [...p.errors, ...(!!p.prompt() === ok ? [] : [`期待と異なる（status: ${p.status()}）`])]); p.close();
+  }
+
+  // D-5：すべて消去しても台帳を黙って消さず、残ることを確認文で示す
+  {
+    const f = [];
+    const p = openPage(); p.consent();
+    await loadCsv(p, '﻿識別コード,保存日時,年齢帯\r\nL1,202609011000,70～74歳\r\n');
+    let msg = ''; p.w.confirm = m => { msg = m; return true; };
+    p.$('resetBtn').click();
+    if (!msg.includes('台帳として残り') || p.w.eval('savedCases.length') !== 1) f.push('すべて消去時に台帳が残る旨が示されない、または台帳が消えた: ' + msg);
+    record('v4.39', 'D-5 すべて消去時の台帳の扱い', [...p.errors, ...f]); p.close();
+  }
+}
+
 // ───────────────────────── 実行 ─────────────────────────
 (async () => {
   const t0 = Date.now();
@@ -679,6 +823,7 @@ async function testCsvAndButtons() {
   testRandom();
   await testCsvAndButtons();
   await testMarkdownFlow();
+  await testV439();
 
   const failed = results.filter(r => r.failures.length);
   const bySuite = {};
