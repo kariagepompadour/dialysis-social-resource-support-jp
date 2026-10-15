@@ -106,7 +106,6 @@ const SPEC = {
     '手元で確認できた証・受給者証（その他欄を含む）を抜き出す。',
     '特定疾病療養受療証等／手元で確認できた証・受給者証（その他欄を含む）／本人の希望／在宅継続の緊急度。',
     '③証・受給者証：0-0に転記した各証（その他欄を含む）について、対象疾病・認定理由を回答中で断定した箇所の有無',
-    '次の13行を「問題なし」の一語で済ませず',
     '⑫支援者の所在：', '⑬医療的ケア・補助具：',
     '支援者の所在区分から所要時間・実働頻度・送迎可能性を推定していないか（R-13）',
     '医療的ケア・補助具の記載から診断名・障害種別・等級・資格を推定せず、受け入れ可否を断定していないか（R-14）',
@@ -176,6 +175,67 @@ const SPEC = {
 };
 
 // ───────────────────────── 基盤 ─────────────────────────
+// v4.40「具体的なサービスの利用例」の仕様（実装から生成せず、依頼仕様書から独立に固定）
+const SPEC_V440 = {
+  checkboxId: 'includeUsageExamples',
+  label: '具体的なサービスの利用例を表示する',
+  csvHeader: 'AI回答に具体的なサービス利用例を表示',
+  outputHeaders: ['AI回答に元の質問アンケート結果を表示', 'AI回答に略称対応表を表示', 'AI回答に具体的なサービス利用例を表示'],
+  auditOn: '次の14行を「問題なし」の一語で済ませず',
+  auditOff: '次の13行を「問題なし」の一語で済ませず',
+  // ONのときだけ含まれ、OFFでは1つも含まれてはならない文字列
+  onlyOn: [
+    'R-15【具体的なサービスの利用例】',
+    'S7【具体的なサービスの利用例】',
+    '\n具体的なサービスの利用例（0章・A～Gの字数とは別枠。全体で800～1200字程度を目安）\n',
+    'H-例. 公開事例の出典',
+    '⑭利用例：',
+    '「架空の利用イメージ」',
+    '例①',
+  ],
+  // ONのとき必須の安全条件・表示内容（仕様4～8）
+  requiredOn: [
+    '原則3～5件', '件数を満たすための無理な提案はしない',
+    '介護・福祉制度に詳しくない人にも分かる平易な言葉',
+    '制度名を並べるのではなく、生活場面に沿って',
+    '1. 生活場面', '2. 考えられる支援の内容', '3. 利用できる可能性のあるサービスや支援方法',
+    '4. 複数の支援を組み合わせる具体的なイメージ', '6. 区別：「公開事例（例①等。出典はH-例）」または「架空の利用イメージ（AIが構成した例で、実際の利用事例ではありません）」',
+    '入力にない生活課題、家族事情（家族の年齢・健康状態・介護疲れ等）、本人の状態（転倒しやすさ等）、本人の希望を事実として補わない',
+    '「確認したいこと」として問いの形で示す',
+    '現在の支援を続けながら負担の大きい部分だけを補う方法も示す',
+    '要介護認定、障害支援区分、年齢、所得区分、身体障害者手帳等の条件を推定しない',
+    '「利用できます」と断定せず',
+    '介護保険・障害福祉に限らず、家族、地域資源、透析施設等の医療機関が既に行っている支援、民間サービスも',
+    '地域での提供の有無や利用条件を根拠なく断定せず',
+    '本人が利用を希望していると推定しない',
+    'Web検索で参照先の本文を実際に開いて確認できたものだけ',
+    '出典に書かれていないサービスの組み合わせ、利用頻度、費用、成果を補わない',
+    '出典の文章を長く引用せず',
+    '実在の患者・家族の事例であるかのように書かない',
+    '公開事例の出典を参照番号[n]と混在させない',
+    'S4・S5の本文確認と照合なしにBの候補として採用しない',
+    'S1～S6（S3の中核確認、R-9の適用条件確認、S5.5の費用調査を含む）を省略・短縮する理由にならず',
+    'R-8の前段に該当する場合は、利用例の章も出力しない',
+    '架空の利用イメージでも制度上の利用可能性を断定しない',
+    '1つの例番号には1つのURLだけを対応させ',
+    '□URLが開く　□利用例の記載と出典本文が一致　□出典にない内容を補っていない',
+    'H-例は上限外。利用例のために0章・A～Gの必須事項を削らず、字数の目安のためにR-15の条件・未確認事項を削らない。',
+    // レビュー補足（2026-10-15）：具体性の優先と、字数は目安であること
+    '本人や家族が「そんな支援方法もあるのか」と気づけることを優先し、6項目を形式的な穴埋めにしない。',
+    '時間の流れに沿って', '抽象的な表現で済ませない', '具体性は、入力された生活場面と一般的な支援方法の範囲で出し、入力にない事実で補わない',
+    '800～1200字は目安であり、具体性を削ってまで合わせない。',
+    '件数を減らすか例の間で重複する説明を省いて調整し、0章・A～Gの回答量を圧迫しない。',
+  ],
+  item5: { self: '5. 確認しておきたいこと（', other: '5. 本人・家族に確認したいこと（' },
+  orderOn: [
+    ['R-14【医療的ケア・補助具の記載】', 'R-15【具体的なサービスの利用例】', '第2部　用語の定義'],
+    ['S6【確認できない場合】', 'S7【具体的なサービスの利用例】', '第5部　出力形式'],
+    ['0-0. 入力の要点', '\n具体的なサービスの利用例（', '\n0. 制度・保険・公費の整理'],
+    ['\nH. 参照URL一覧と人による確認欄', '\nH-例. 公開事例の出典', '\nAI自己監査記録（AIの自己申告）'],
+    ['⑬医療的ケア・補助具：', '⑭利用例：', '最後に「この自己監査は'],
+  ],
+};
+
 const HTML = fs.readFileSync(HTML_PATH, 'utf8');
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 
@@ -259,11 +319,28 @@ function checkPrompt(p, { staff, self }, page) {
   if (page) {
     if (p.includes('\nJ. 元の質問アンケート結果\n')!==page.$('includeOriginalInAnswer').checked) f.push('Jの表示選択が相談文へ反映されていない');
     if (p.includes('\nI. 略称対応表\n')!==page.$('includeAbbreviationsInAnswer').checked) f.push('Iの表示選択が相談文へ反映されていない');
+    f.push(...checkUsageExamples(p, page.$(SPEC_V440.checkboxId).checked, self));
     const original = page.w.eval('conditionLines()');
     const start = p.indexOf('\n▼症例データ開始\n'), end = p.indexOf('\n▲症例データ終了'), at = p.indexOf(original);
     if (start < 0 || end < 0) f.push('症例データの区切り行が見つからない');
     if (at < 0) f.push('元の質問アンケート結果が相談文に完全な形で含まれていない');
     else if (!(start < at && at + original.length <= end)) f.push('元の質問アンケート結果が症例データ区切りの外にある');
+  }
+  return f;
+}
+
+// v4.40：利用例の有無に応じた検査（ON：全指示と順序／OFF：痕跡なし・13行）
+function checkUsageExamples(p, on, self) {
+  const f = [];
+  if (on) {
+    if (!p.includes(SPEC_V440.auditOn) || p.includes(SPEC_V440.auditOff)) f.push('利用例ONで自己監査が14行指定になっていない');
+    for (const s of [...SPEC_V440.onlyOn, ...SPEC_V440.requiredOn]) if (!p.includes(s)) f.push(`利用例ONの指示の欠落: ${s}`);
+    for (const seq of SPEC_V440.orderOn) { const idx = seq.map(x => p.indexOf(x)); if (idx.some(i => i < 0) || !idx.every((v, i) => i === 0 || idx[i - 1] < v)) f.push(`利用例の位置の異常: ${seq.join(' → ')}`); }
+    if (p.includes(SPEC_V440.item5.self) !== self || p.includes(SPEC_V440.item5.other) !== !self) f.push(`利用例5項目目の読者分岐の異常（期待: ${self ? '本人向け' : '本人・家族に確認'}）`);
+  } else {
+    if (!p.includes(SPEC_V440.auditOff) || p.includes(SPEC_V440.auditOn)) f.push('利用例OFFで自己監査が13行指定になっていない');
+    for (const s of SPEC_V440.onlyOn) if (p.includes(s)) f.push(`利用例OFFなのに利用例の指示が混入: ${s.trim()}`);
+    for (const s of Object.values(SPEC_V440.item5)) if (p.includes(s)) f.push('利用例OFFなのに利用例の確認項目が混入');
   }
   return f;
 }
@@ -691,7 +768,8 @@ async function testV439() {
     p.confirmAll(); p.submit(); const prompt = p.prompt();
     p.w.eval('savedCases=[captureCurrentCase()]'); const csv = p.w.eval('casesToCsvText()');
     const header = p.w.eval('parseCSV')(csv)[0];
-    if (header.slice(-2).join('|') !== 'AI回答に元の質問アンケート結果を表示|AI回答に略称対応表を表示') f.push('出力設定2列がCSV末尾にない: ' + header.slice(-2).join('|'));
+    // v4.40で利用例の列を末尾に追加したため、既存2列はその直前に並ぶ（列名・相対順は不変）
+    if (header.slice(-3, -1).join('|') !== 'AI回答に元の質問アンケート結果を表示|AI回答に略称対応表を表示') f.push('出力設定2列が利用例列の直前にない: ' + header.slice(-3, -1).join('|'));
     const q = openPage(); q.consent();
     q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(csv))[0]);
     if (q.$('includeOriginalInAnswer').checked || q.$('includeAbbreviationsInAnswer').checked) f.push('出力設定「なし」がCSV往復で復元されない');
@@ -808,6 +886,173 @@ async function testV439() {
   }
 }
 
+// v4.40「具体的なサービスの利用例を表示する」の回帰テスト（仕様9）
+async function testV440() {
+  const S = SPEC_V440;
+  const tick = (ms = 50) => new Promise(r => setTimeout(r, ms));
+  const loadCsv = async (pg, text) => {
+    const file = new pg.w.File([text], 'cases.csv', { type: 'text/csv' });
+    Object.defineProperty(pg.$('caseFileInput'), 'files', { value: [file], configurable: true });
+    pg.$('caseFileInput').dispatchEvent(new pg.w.Event('change', { bubbles: true }));
+    await tick(150);
+  };
+  const baseAI = (pg, userType = '家族・支援者') => { pg.set('userType', userType); pg.set('desiredRoute', 'AIチャットで調べてからクリニックへ相談したい'); pg.set('age', '70～74歳'); pg.text('municipality', '東京都北区'); pg.set('dialysisType', '施設血液透析'); pg.set('urgency', '安定'); };
+  const box = pg => pg.$(S.checkboxId);
+  const has = (p, list) => list.filter(s => p.includes(s));
+
+  // 1 初期状態・設置位置
+  {
+    const f = [];
+    const p = openPage(); p.consent();
+    const cb = box(p);
+    if (!cb) f.push('チェックボックスがない');
+    else {
+      if (!cb.checked) f.push('初期状態がONでない');
+      if (!cb.closest('label').textContent.includes(S.label)) f.push('ラベル文言が仕様と異なる');
+      if (!cb.closest('#researchScopeBox')) f.push('「AIに調べてもらう内容」の中にない');
+      if (!cb.closest('#caseForm')) f.push('入力フォームの外にある');
+    }
+    record('v4.40', '初期状態ON・「AIに調べてもらう内容」内に設置', [...p.errors, ...f]); p.close();
+  }
+
+  // 2 ON／OFF × 職員・家族・本人の各経路
+  const routes = [
+    ['職員向け（入力担当者=クリニック職員）', p => { baseAI(p, V.staffUser); }, { staff: true, self: false }],
+    ['職員向け（使い方=職員がAIで調べる）', p => { baseAI(p, '家族・支援者'); p.set('desiredRoute', V.staffRoute); }, { staff: true, self: false }],
+    ['本人・家族向け（家族・支援者）', p => { baseAI(p, '家族・支援者'); }, { staff: false, self: false }],
+    ['本人・家族向け（患者本人）', p => { baseAI(p, V.selfUser); }, { staff: false, self: true }],
+  ];
+  for (const [name, setup, br] of routes) for (const on of [true, false]) {
+    const p = openPage(); p.consent(); setup(p); box(p).checked = on; p.confirmAll(); p.submit();
+    const prompt = p.prompt();
+    const f = checkPrompt(prompt, br, p); // 既存の安全規則・I/J・S3と、利用例の有無を同時に検査
+    if (on && has(prompt, S.onlyOn).length !== S.onlyOn.length) f.push('ONで利用例の追加指示が生成されない');
+    if (!on && has(prompt, S.onlyOn).length) f.push('OFFで利用例の追加指示が生成された');
+    record('v4.40', `${name}：利用例${on ? 'ON' : 'OFF'}`, [...p.errors, ...f]); p.close();
+  }
+
+  // 3 OFFの相談文はONから利用例の指示を除いたもの以外に違いがない（既存部分の不変）
+  {
+    const f = [];
+    const p = openPage(); p.consent(); baseAI(p); p.confirmAll(); p.submit(); const on = p.prompt();
+    box(p).checked = false; p.confirmAll(); p.submit(); const off = p.prompt();
+    if (on.length <= off.length) f.push('ONの相談文がOFFより長くない');
+    // OFFの各行がONにも同じ順序で現れる（既存の行は書き換えない。自己監査の行数指定のみ例外）
+    const onLines = on.split('\n'); let j = 0;
+    for (const line of off.split('\n')) {
+      const target = line.replace(S.auditOff, S.auditOn);
+      while (j < onLines.length && onLines[j] !== target) j++;
+      if (j >= onLines.length) { f.push('OFFの行がONで書き換えられている: ' + line.slice(0, 60)); break; }
+      j++;
+    }
+    record('v4.40', 'ON時も既存の行を書き換えず追加のみ（自己監査の行数を除く）', [...p.errors, ...f]); p.close();
+  }
+
+  // 4 I・J表示設定との組み合わせ
+  for (const inclJ of [true, false]) for (const inclI of [true, false]) for (const on of [true, false]) {
+    const p = openPage(); p.consent(); baseAI(p);
+    p.$('includeOriginalInAnswer').checked = inclJ; p.$('includeAbbreviationsInAnswer').checked = inclI; box(p).checked = on;
+    p.confirmAll(); p.submit();
+    record('v4.40', `I=${inclI ? 'あり' : 'なし'} J=${inclJ ? 'あり' : 'なし'} 利用例=${on ? 'ON' : 'OFF'}`, [...p.errors, ...checkPrompt(p.prompt(), { staff: false, self: false }, p)]); p.close();
+  }
+
+  // 5 CSV保存・復元（ON／OFF）と列の位置
+  for (const on of [true, false]) {
+    const f = [];
+    const p = openPage(); p.consent(); baseAI(p); p.text('caseId', 'EX' + (on ? 1 : 0)); box(p).checked = on;
+    p.confirmAll(); p.submit(); const prompt = p.prompt();
+    p.w.eval('savedCases=[captureCurrentCase()]'); const csv = p.w.eval('casesToCsvText()');
+    const rows = p.w.eval('parseCSV')(csv), header = rows[0];
+    if (header.slice(-3).join('|') !== S.outputHeaders.join('|')) f.push('出力設定列の並びが仕様と異なる: ' + header.slice(-3).join('|'));
+    if (header[header.length - 1] !== S.csvHeader) f.push('利用例の列が末尾にない');
+    if (rows[1][header.indexOf(S.csvHeader)] !== (on ? 'あり' : 'なし')) f.push('CSVの値が「あり／なし」で保存されない');
+    const q = openPage(); q.consent(); box(q).checked = !on;
+    q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(csv))[0]);
+    if (box(q).checked !== on) f.push('CSV往復で設定が復元されない');
+    q.confirmAll(); q.submit(); if (q.prompt() !== prompt) f.push('CSV往復後に相談文が一致しない');
+    record('v4.40', `CSV保存・復元（利用例${on ? 'ON' : 'OFF'}）`, [...p.errors, ...q.errors, ...f]); p.close(); q.close();
+  }
+
+  // 6 旧CSV（v4.39形式・最小形式）はONとして復元
+  {
+    const f = [];
+    const legacyV439 = '﻿識別コード,保存日時,年齢帯,AI回答に元の質問アンケート結果を表示,AI回答に略称対応表を表示\r\nL39,20261011120000,70～74歳,なし,あり\r\n';
+    const legacyMin = '﻿識別コード,保存日時,年齢帯\r\nL1,202609011000,70～74歳\r\n';
+    for (const [name, csv] of [['v4.39形式', legacyV439], ['最小形式', legacyMin]]) {
+      const q = openPage(); q.consent(); box(q).checked = false;
+      q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(csv))[0]);
+      if (!box(q).checked) f.push(`${name}の旧CSVでONにならない`);
+      if (name === 'v4.39形式' && (q.$('includeOriginalInAnswer').checked || !q.$('includeAbbreviationsInAnswer').checked)) f.push('v4.39形式のI・J設定が維持されない');
+      f.push(...q.errors); q.close();
+    }
+    // 旧CSVを読み込み → 保存すると、新しい列が「あり」で末尾に付く
+    const p = openPage(); p.consent(); await loadCsv(p, legacyV439);
+    const out = p.w.eval('parseCSV')(p.w.eval('casesToCsvText()'));
+    if (out[1][out[0].indexOf(S.csvHeader)] !== 'あり') f.push('旧CSVの再保存で利用例列が「あり」にならない');
+    record('v4.40', '旧CSVはONとして復元・再保存', [...p.errors, ...f]); p.close();
+  }
+
+  // 7 OFFだけ変更した状態で条件を呼び出すと上書き確認が出る
+  {
+    const f = [];
+    const p = openPage(); p.consent(); box(p).checked = false;
+    let asked = 0; p.w.confirm = () => { asked++; return false; };
+    p.w.eval('applyCaseToForm')(p.w.eval('rowsToCases')(p.w.eval('parseCSV')('﻿識別コード,保存日時,年齢帯\r\nL1,202609011000,70～74歳\r\n'))[0]);
+    if (!asked) f.push('利用例OFFの未保存入力があっても上書き確認が出ない');
+    if (box(p).checked) f.push('上書きを取り消したのに設定が変わった');
+    record('v4.40', '利用例OFFを未保存の変更として扱う', [...p.errors, ...f]); p.close();
+  }
+
+  // 8 すべて消去でONに戻る
+  {
+    const f = [];
+    const p = openPage(); p.consent(); box(p).checked = false; p.$('resetBtn').click();
+    if (!box(p).checked) f.push('すべて消去後にONに戻らない');
+    record('v4.40', 'すべて消去でONに戻る', [...p.errors, ...f]); p.close();
+  }
+
+  // 9 ランダム架空症例生成：利用者の選択を保持し、相談文が仕様どおり
+  for (const on of [true, false]) {
+    const p = openPage(SEED + (on ? 1 : 2)); p.consent(); box(p).checked = on;
+    let bad = 0; const f = [];
+    for (let i = 0; i < 30; i++) {
+      p.$('randomCaseBtn').click();
+      if (box(p).checked !== on) { f.push('ランダム生成で設定が変わった'); break; }
+      const r = checkPrompt(p.prompt(), expectedBranch(p.$('userType').value, p.$('desiredRoute').value), p);
+      if (r.length) { bad++; if (bad === 1) f.push(...r); }
+    }
+    if (bad) f.push(`${bad}/30件で失敗`);
+    record('v4.40', `ランダム架空症例30件（利用例${on ? 'ON' : 'OFF'}・選択保持）`, [...p.errors, ...f]); p.close();
+  }
+
+  // 10 個人情報確認機能はONでも停止する
+  for (const on of [true, false]) {
+    const f = [];
+    const p = openPage(); p.consent(); baseAI(p); box(p).checked = on; p.text('notes', '連絡先は090-1234-5678です'); p.confirmAll(); p.submit();
+    if (p.prompt()) f.push('電話番号を含むのに相談文が生成された');
+    if (!p.status().includes('電話番号')) f.push('停止理由が表示されない: ' + p.status());
+    const q = openPage(); q.consent(); baseAI(q); box(q).checked = on; q.submit();
+    if (q.prompt()) f.push('目視確認なしで相談文が生成された');
+    record('v4.40', `個人情報確認ゲートの維持（利用例${on ? 'ON' : 'OFF'}）`, [...p.errors, ...q.errors, ...f]); p.close(); q.close();
+  }
+
+  // 11 任意：v4.39と比較し、OFFの相談文が完全一致することを確認（--baseline <v4.39のindex.html>）
+  const baseline = opt('--baseline', '');
+  if (baseline) {
+    const BASE = fs.readFileSync(path.resolve(baseline), 'utf8');
+    const gen = (html, seed, setOff) => {
+      const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://example.test/', beforeParse(w) { w.Math.random = mulberry32(seed); w.HTMLElement.prototype.scrollIntoView = () => {}; w.scrollTo = () => {}; w.confirm = () => true; w.alert = () => {}; } });
+      const w = dom.window, $ = id => w.document.getElementById(id);
+      $('useRulesConfirm').checked = true; $('useRulesConfirm').dispatchEvent(new w.Event('change', { bubbles: true }));
+      if (setOff) $(S.checkboxId).checked = false;
+      $('randomCaseBtn').click(); const out = $('researchPrompt').value; w.close(); return out;
+    };
+    let diff = 0;
+    for (let s = 1; s <= 100; s++) if (gen(BASE, s, false) !== gen(HTML, s, true)) diff++;
+    record('v4.40', `OFF時の相談文がv4.39と完全一致（ランダム100件）`, diff ? [`${diff}件で不一致`] : []);
+  }
+}
+
 // ───────────────────────── 実行 ─────────────────────────
 (async () => {
   const t0 = Date.now();
@@ -824,6 +1069,7 @@ async function testV439() {
   await testCsvAndButtons();
   await testMarkdownFlow();
   await testV439();
+  await testV440();
 
   const failed = results.filter(r => r.failures.length);
   const bySuite = {};
