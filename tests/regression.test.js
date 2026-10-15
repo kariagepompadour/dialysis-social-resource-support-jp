@@ -229,12 +229,124 @@ const SPEC_V440 = {
   item5: { self: '5. 確認しておきたいこと（', other: '5. 本人・家族に確認したいこと（' },
   orderOn: [
     ['R-14【医療的ケア・補助具の記載】', 'R-15【具体的なサービスの利用例】', '第2部　用語の定義'],
-    ['S6【確認できない場合】', 'S7【具体的なサービスの利用例】', '第5部　出力形式'],
+    ['S6【確認できない場合】', 'S7【具体的なサービスの利用例】', '\n第5部　'], // v4.41：第5部の見出し文言は回答形式で異なるため共通部分で判定
     ['0-0. 入力の要点', '\n具体的なサービスの利用例（', '\n0. 制度・保険・公費の整理'],
     ['\nH. 参照URL一覧と人による確認欄', '\nH-例. 公開事例の出典', '\nAI自己監査記録（AIの自己申告）'],
     ['⑬医療的ケア・補助具：', '⑭利用例：', '最後に「この自己監査は'],
   ],
 };
+
+// v4.41「回答の詳しさ（簡易版／詳細版）」の仕様（依頼仕様書から独立に固定）
+const SPEC_V441 = {
+  radioName: 'answerFormat',
+  values: ['簡易版', '詳細版'],
+  labels: ['簡易版（初期設定・おすすめ）', '詳細版'],
+  descriptions: [
+    '詳細版と同じ範囲を調査し、重要な支援方法・相談先・公式情報を読みやすく要約します。',
+    '調査結果を省略せず、制度の条件・費用・申請方法・根拠などを詳しく表示します。',
+  ],
+  csvHeader: 'AIの回答形式',
+  legacyNotice: '旧版のCSVには回答の詳しさの列がないため、初期設定の「簡易版」にしました。',
+  detailed: {
+    heading: '\n第5部　出力形式（この順番・この見出しで出力する）\n',
+    splitStart: '長くなり1回の回答で出力しきれない場合は',
+    required: [
+      '長くなり1回の回答で出力しきれない場合は、章の途中で切らずに章単位で区切り、複数回に分けて出力してよい。',
+      '「出力済み：○○まで／未出力：△△」', '「続きを出力してください」', '続きの回答にも第1部～第6部の規則を適用し',
+    ],
+    audit: (n, refs = true) => `「AI自己監査記録（AIの自己申告）」は${refs ? 'H' : 'H0'}の後・回答環境より前に置き、次の${n}行を「問題なし」の一語で済ませず、各行に記載の事実を書く。`,
+  },
+  simple: {
+    heading: '\n第5部　調査結果の整理の構成（簡易版：この構成は出力前の内部の整理に使い、表示は第5部の2に従う）\n',
+    block: '第5部の2　簡易版の表示形式（この順番・この見出しで出力する）',
+    required: [
+      '簡易版は調査を省略するモードではない。', '詳細版と同じ範囲・同じ厳密さで出力前に行い',
+      '調査範囲を簡易版のために狭めない。', 'Bの候補に課す条件は①の表の各行にも課し、Hに課す条件は',
+      '第5部の章立てと字数指定（0章1500字、A～G 5500字等）は内部の整理に使い、そのまま表示しない。',
+      '内部の整理にない制度・サービスを加えない。', '利用条件が未確認の制度を利用可能と断定しない。',
+      '本人の希望と現在利用しているサービスを無視しない。',
+      '医療保険、介護保険、障害福祉、公費負担医療・医療費助成、自治体独自制度を混同しない。',
+      '重大な除外条件と費用負担の注意を要約で消さない。',
+      '簡易版の回答から詳細版の全文を再現・復元できるとは書かない。',
+      '①～④は合計2,000～3,000字程度を目安とする。', '第1部のルールにもとづく注意・要確認・除外条件を削ってまで字数に合わせない。',
+      '\n① この症例で考えられる支援\n', '5～8件程度', 'S4・S5で公式本文を確認・照合した候補と、入力された現在の手段・制度外の通常手段に限る。',
+      '困っていること（入力のどの項目か）｜考えられる支援', 'まず相談するところ｜公式根拠[n]', '置き換えを前提にせずその旨を書く。',
+      '\n③ まず何をすればよいか\n', '優先順位付きで3件程度', '誰が・どこへ（相談先）・何を確認／相談するか',
+      '\n④ 注意点\n', '利用が確定したものではなく', '重要な適用条件・除外条件・不足情報（要確認）', '費用負担の注意', '公式本文未確認のため除外：制度名',
+      '追加質問に答える場合も、第1部～第4部・第6部の規則を引き続き適用する。',
+      '自己監査（要約）・回答環境（字数上限外）', '「未修正の誤り：', 'I・Jは、回答末尾の出力選択で「あり」の場合だけ',
+    ],
+    examplesOn: ['\n② 具体的なサービスの利用例\n', '2～4件を選び', 'どのような生活場面で、どのサービスを、どう組み合わせられるか'],
+    // v4.42：⑤を表示する場合だけ含まれる指示
+    refsOn: [
+      'Hに課す条件は⑤の各URLにも課す',
+      '\n⑤ 公式情報・次の調査への案内\n', '本文を確認できた公式ページだけ、1番号1URL、推測したURLを載せない、「検証済み」と書かない',
+      '各URLの後に「□URLが開く　□記載内容　□対象地域　□利用条件」を1行置く。', '別のAIによる確認もその代替にはならない',
+      '「気になる制度について、利用条件・費用・申請方法などをさらに詳しく調べることができます。知りたい制度名を指定して、AIに追加質問してください。」',
+    ],
+    refsOnExamples: ['②で公開事例を使った場合は、H-例の規則に従い', '「公開事例（例①等。出典は⑤）」'],
+    examplesStep: on => `（S1～S${on ? 7 : 6}）`,
+    audit: n => `「AI自己監査記録（AIの自己申告）」の次の${n}行は、簡易版では出力前に内部で点検し、各行を「問題なし」の一語で済ませず記載の事実を確かめる。表示は第5部の2の「自己監査（要約）」に従う。`,
+    order: (on, refs = true) => [...['\n① この症例で考えられる支援\n'], ...(on ? ['\n② 具体的なサービスの利用例\n'] : []), '\n③ まず何をすればよいか\n', '\n④ 注意点\n', ...(refs ? ['\n⑤ 公式情報・次の調査への案内\n'] : []), '自己監査（要約）・回答環境'],
+  },
+  // 禁止：簡易版から詳細版を復元できるかのような案内
+  forbidden: [/詳細版の全文を(再現|復元)できます/, /簡易版から詳細版を(再現|復元)できます/],
+};
+
+// v4.42「回答に含める補足情報（⑤・I・J）の表示設定」の仕様（依頼仕様書から独立に固定）
+const SPEC_V442 = {
+  ids: ['includeReferencesInAnswer', 'includeAbbreviationsInAnswer', 'includeOriginalInAnswer'],
+  labels: ['⑤ 公式情報・次の調査への案内', 'I. 略称対応表', 'J. 元の質問アンケート結果'],
+  csvHeader: 'AI回答に公式情報・次の調査への案内を表示',
+  legacyNotice: '旧版のCSVには⑤の表示設定がないため、従来どおり「表示する」にしました。',
+  abbrOffNote: '略称対応表を出力しないため、本文で略称を使う場合は初出時に正式名称を添える。',
+  // Hが表示されない場合（詳細版で⑤OFF）にだけ外れる既存の必須文
+  hOnly: ['H. 参照URL一覧と人による確認欄', '「検証済み」とは書かない。', '根拠要約の末尾に「所在：」として、主要な根拠が載る見出し・表名を本文の表記のまま書く', '所在を確認できない場合は省略し、推測で補わない。'],
+  hOnlyExamples: ['H-例. 公開事例の出典', '1つの例番号には1つのURLだけを対応させ', '□URLが開く　□利用例の記載と出典本文が一致　□出典にない内容を補っていない'],
+  refsOff: {
+    marker: '⑤「公式情報・次の調査への案内」なし：',
+    common: [
+      '（見出しも出さない）', 'ただし、公式情報の検索と本文確認（R-1、S1～S6）は省略しない。',
+      '確認した公式ページは内部で参照番号[n]として整理し', 'Markdownリンク「[短いページ名](完全URL)」',
+      'URL文字列をそのまま本文に並べない。', '公開事例の出典も、その利用例の区別の行に同じ形で示す。',
+      'Hに課す規則（本文を確認できた公式ページだけ、推測したURLを載せない、「検証済み」と書かない）は、このリンクにも適用する。',
+      '追加質問に答える場合も、第1部～第4部・第6部の規則を引き続き適用する。',
+    ],
+    simple: ['第5部の2の⑤を出力しない', '①の表の公式根拠の列は必ずこの形で示す。', 'Hに課す条件は本文中の根拠リンクにも課す'],
+    simpleExamples: ['「公開事例（例①等。出典はリンクで示す）」'],
+    detailed: ['H「参照URL一覧と人による確認欄」、H-例、「追加確認の推奨」を出力しない', '0-A・B・B-費用の公式根拠の列は必ずこの形で示す。'],
+    detailedAbsent: ['\nH. 参照URL一覧と人による確認欄', '\nH-例. 公開事例の出典', '\n追加確認の推奨\n'],
+  },
+  // 質問項目は増やさない（v4.41時点の構成を固定）
+  questions: {
+    selects: ['userType','desiredRoute','personWish','age','living','healthInsurance','publicAssistance','careLevel','disability','careManager','specifiedDisease16','renalCause','disabilityDetail','taxStatus','upcomingMilestone','specificDiseaseCertificate','dialysisType','transport','doorToCar','boarding','postDialysis','transportStability','wheelchair','escort','mobility','transfer','stairs','toileting','bathing','dressing','communication','decision','cognition','meal','medication','money','housing','barrier','monitoring','economy','work','urgency','supporter','distance','supportFrequency','continuity','supporterBarrier'],
+    optionTotal: 290,
+    groups: { heldCerts: 8, supportTasks: 9, services: 14, researchDomains: 11 },
+    texts: ['municipality', 'heldCertsOther', 'careDevices', 'notes', 'caseId', 'researchRequest'],
+  },
+};
+
+// v4.42 公開前UI修正の仕様（依頼仕様書から独立に固定）
+const SPEC_V442_UI = {
+  saveLabel: '入力条件をCSV形式で保存',
+  saveClass: 'save',
+  areaId: 'privacyConfirmArea',
+  attentionClass: 'attention',
+  privacyLabel: '上記の入力禁止事項が含まれていないことを目視確認しました。',
+  message: '個人情報が含まれていないことを目視確認し',
+};
+
+// 検査対象HTMLで、ランダム架空症例の相談文を1件生成する（ベースライン比較用）
+function genRandomPrompt(html, seed, { examples, format, refs, abbr, orig } = {}) {
+  const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://example.test/', beforeParse(w) { w.Math.random = mulberry32(seed); w.HTMLElement.prototype.scrollIntoView = () => {}; w.scrollTo = () => {}; w.confirm = () => true; w.alert = () => {}; } });
+  const w = dom.window, d = w.document, $ = id => d.getElementById(id);
+  $('useRulesConfirm').checked = true; $('useRulesConfirm').dispatchEvent(new w.Event('change', { bubbles: true }));
+  if (examples !== undefined && $('includeUsageExamples')) $('includeUsageExamples').checked = examples;
+  if (format) d.querySelectorAll('input[name="answerFormat"]').forEach(r => { r.checked = r.value === format; });
+  for (const [id, v] of [['includeReferencesInAnswer', refs], ['includeAbbreviationsInAnswer', abbr], ['includeOriginalInAnswer', orig]]) if (v !== undefined && $(id)) $(id).checked = v;
+  $('randomCaseBtn').click(); const out = $('researchPrompt').value; w.close(); return out;
+}
+const removeLineStarting = (text, start) => text.split('\n').filter(l => !l.startsWith(start)).join('\n');
 
 const HTML = fs.readFileSync(HTML_PATH, 'utf8');
 function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
@@ -299,7 +411,9 @@ function checkPrompt(p, { staff, self }, page) {
   if (!p) return ['相談文が生成されていない'];
   if (!p.trimEnd().endsWith(SPEC.terminator)) f.push('末尾が終端文で終わっていない（途中切断の可能性）');
   for (const re of SPEC.forbidden) if (re.test(p)) f.push(`禁止パターン混入: ${re}`);
-  for (const s of SPEC.required) if (!p.includes(s)) f.push(`必須文の欠落: ${s}`);
+  const refsBox = page && page.$('includeReferencesInAnswer'), fmtBox = page && page.d.querySelector('input[name="answerFormat"]:checked');
+  const hShown = !refsBox || refsBox.checked || !fmtBox || fmtBox.value !== '詳細版'; // v4.42：詳細版で⑤OFFのときだけHを表示しない
+  for (const s of SPEC.required) if (!p.includes(s) && (hShown || !SPEC_V442.hOnly.includes(s))) f.push(`必須文の欠落: ${s}`);
   for (const c of SPEC.costClauses) if (!p.includes(c)) f.push(`R-12条項の欠落: ${c}`);
   for (const seq of SPEC.order) { const idx = seq.map(x => p.indexOf(x)); if (idx.some(i => i < 0) || !idx.every((v, i) => i === 0 || idx[i - 1] < v)) f.push(`順序の異常: ${seq.join(' → ')}`); }
   for (const re of SPEC.costForbidden) if (re.test(p)) f.push(`費用の危険なアンカー: ${re}`);
@@ -319,7 +433,12 @@ function checkPrompt(p, { staff, self }, page) {
   if (page) {
     if (p.includes('\nJ. 元の質問アンケート結果\n')!==page.$('includeOriginalInAnswer').checked) f.push('Jの表示選択が相談文へ反映されていない');
     if (p.includes('\nI. 略称対応表\n')!==page.$('includeAbbreviationsInAnswer').checked) f.push('Iの表示選択が相談文へ反映されていない');
-    f.push(...checkUsageExamples(p, page.$(SPEC_V440.checkboxId).checked, self));
+    const fmtRadio = page.d.querySelector('input[name="answerFormat"]:checked');
+    const simple = !fmtRadio || fmtRadio.value !== '詳細版';
+    const refs = !page.$('includeReferencesInAnswer') || page.$('includeReferencesInAnswer').checked;
+    f.push(...checkUsageExamples(p, page.$(SPEC_V440.checkboxId).checked, self, simple, hShown));
+    f.push(...checkAnswerFormat(p, simple, page.$(SPEC_V440.checkboxId).checked, refs));
+    f.push(...checkDisplayOptions(p, simple, page.$(SPEC_V440.checkboxId).checked, refs, page.$('includeAbbreviationsInAnswer').checked));
     const original = page.w.eval('conditionLines()');
     const start = p.indexOf('\n▼症例データ開始\n'), end = p.indexOf('\n▲症例データ終了'), at = p.indexOf(original);
     if (start < 0 || end < 0) f.push('症例データの区切り行が見つからない');
@@ -330,18 +449,62 @@ function checkPrompt(p, { staff, self }, page) {
 }
 
 // v4.40：利用例の有無に応じた検査（ON：全指示と順序／OFF：痕跡なし・13行）
-function checkUsageExamples(p, on, self) {
+function checkUsageExamples(p, on, self, simple = false, hShown = true) {
   const f = [];
+  const auditLine = n => simple ? SPEC_V441.simple.audit(n) : (hShown ? SPEC_V440[n === 14 ? 'auditOn' : 'auditOff'] : SPEC_V441.detailed.audit(n, false).slice(0, -1).replace(/^.*次の/, '次の').replace(/、各行に記載の事実を書く$/, ''));
   if (on) {
-    if (!p.includes(SPEC_V440.auditOn) || p.includes(SPEC_V440.auditOff)) f.push('利用例ONで自己監査が14行指定になっていない');
-    for (const s of [...SPEC_V440.onlyOn, ...SPEC_V440.requiredOn]) if (!p.includes(s)) f.push(`利用例ONの指示の欠落: ${s}`);
-    for (const seq of SPEC_V440.orderOn) { const idx = seq.map(x => p.indexOf(x)); if (idx.some(i => i < 0) || !idx.every((v, i) => i === 0 || idx[i - 1] < v)) f.push(`利用例の位置の異常: ${seq.join(' → ')}`); }
+    if (!p.includes(auditLine(14)) || p.includes(auditLine(13))) f.push('利用例ONで自己監査が14行指定になっていない');
+    for (const s of [...SPEC_V440.onlyOn, ...SPEC_V440.requiredOn]) if (!p.includes(s) && (hShown || !SPEC_V442.hOnlyExamples.includes(s))) f.push(`利用例ONの指示の欠落: ${s}`);
+    for (const seq of SPEC_V440.orderOn.filter(q => hShown || !q.some(x => x.includes('H-例')))) { const idx = seq.map(x => p.indexOf(x)); if (idx.some(i => i < 0) || !idx.every((v, i) => i === 0 || idx[i - 1] < v)) f.push(`利用例の位置の異常: ${seq.join(' → ')}`); }
     if (p.includes(SPEC_V440.item5.self) !== self || p.includes(SPEC_V440.item5.other) !== !self) f.push(`利用例5項目目の読者分岐の異常（期待: ${self ? '本人向け' : '本人・家族に確認'}）`);
   } else {
-    if (!p.includes(SPEC_V440.auditOff) || p.includes(SPEC_V440.auditOn)) f.push('利用例OFFで自己監査が13行指定になっていない');
+    if (!p.includes(auditLine(13)) || p.includes(auditLine(14))) f.push('利用例OFFで自己監査が13行指定になっていない');
     for (const s of SPEC_V440.onlyOn) if (p.includes(s)) f.push(`利用例OFFなのに利用例の指示が混入: ${s.trim()}`);
     for (const s of Object.values(SPEC_V440.item5)) if (p.includes(s)) f.push('利用例OFFなのに利用例の確認項目が混入');
   }
+  return f;
+}
+
+// v4.41：回答形式に応じた検査（簡易版：第5部の2と表示行／詳細版：v4.40構成＋分割回答の1行）
+function checkAnswerFormat(p, simple, on, refs = true) {
+  const f = [], S = SPEC_V441;
+  for (const re of S.forbidden) if (re.test(p)) f.push(`禁止パターン混入: ${re}`);
+  const mine = simple ? S.simple : S.detailed, other = simple ? S.detailed : S.simple;
+  if (!p.includes(mine.heading) || p.includes(other.heading)) f.push(`第5部の見出しが${simple ? '簡易版' : '詳細版'}になっていない`);
+  const n = on ? 14 : 13;
+  const myAudit = simple ? mine.audit(n) : mine.audit(n, refs), otherAudit = simple ? other.audit(n, refs) : other.audit(n);
+  if (!p.includes(myAudit) || p.includes(otherAudit)) f.push('自己監査の表示行が回答形式と一致しない');
+  if (simple) {
+    for (const s of S.simple.required) if (!p.includes(s)) f.push(`簡易版の指示の欠落: ${s.trim()}`);
+    if (!p.includes(S.simple.block)) f.push('第5部の2がない');
+    if (!p.includes(S.simple.examplesStep(on))) f.push('簡易版の調査手順の範囲（S1～S6/S7）が利用例の設定と一致しない');
+    for (const s of S.simple.examplesOn) if (p.includes(s) !== on) f.push(`簡易版②の有無が利用例の設定と一致しない: ${s.trim()}`);
+    for (const s of S.simple.refsOn) if (p.includes(s) !== refs) f.push(`簡易版⑤の有無が表示設定と一致しない: ${s.trim()}`);
+    for (const s of S.simple.refsOnExamples) if (p.includes(s) !== (refs && on)) f.push(`簡易版②の出典表示が⑤の設定と一致しない: ${s.trim()}`);
+    const seq = S.simple.order(on, refs), idx = seq.map(x => p.indexOf(x));
+    if (idx.some(i => i < 0) || !idx.every((v, i) => i === 0 || idx[i - 1] < v)) f.push('簡易版①～⑤の順序の異常');
+    const blk = p.indexOf(S.simple.block), lastRule = p.indexOf('④それでも収まらない場合は字数超過を許容し'), part6 = p.indexOf('第6部　自己監査');
+    if (!(lastRule < blk && blk < part6)) f.push('第5部の2が第5部本体の後・第6部の前にない');
+    for (const s of S.detailed.required) if (p.includes(s)) f.push('簡易版に詳細版の分割回答指示が混入');
+  } else {
+    for (const s of S.detailed.required) if (!p.includes(s)) f.push(`詳細版の分割回答指示の欠落: ${s}`);
+    if (p.includes(S.simple.block) || p.includes(S.simple.order(false)[0])) f.push('詳細版に簡易版の表示形式が混入');
+  }
+  return f;
+}
+
+// v4.42：⑤・Iの表示設定に応じた検査（Jは checkPrompt の既存検査で確認）
+function checkDisplayOptions(p, simple, on, refs, abbr) {
+  const f = [], R = SPEC_V442.refsOff;
+  if (p.includes(SPEC_V442.abbrOffNote) === abbr) f.push(`略称の初出説明の指示がIの設定と一致しない（I=${abbr ? 'ON' : 'OFF'}）`);
+  if (refs) {
+    if (p.includes(R.marker)) f.push('⑤ONなのに⑤OFFの指示が混入');
+    return f;
+  }
+  for (const s of [...R.common, ...(simple ? R.simple : R.detailed)]) if (!p.includes(s)) f.push(`⑤OFFの指示の欠落: ${s}`);
+  for (const s of (simple ? R.detailed : R.simple)) if (p.includes(s)) f.push(`⑤OFFの指示が回答形式と一致しない: ${s}`);
+  if (simple) { for (const s of R.simpleExamples) if (p.includes(s) !== on) f.push('簡易版②の出典表示（リンク）の有無が利用例の設定と一致しない'); }
+  else for (const s of R.detailedAbsent) if (p.includes(s)) f.push(`詳細版で⑤OFFなのに出力される: ${s.trim()}`);
   return f;
 }
 
@@ -524,7 +687,9 @@ function testRevisedQuestionsAndOutputOptions() {
   record('項目変更','併用療法・送迎・頻度削除', [...pg.errors,...f]); pg.close();
   for (const original of [true,false]) for (const abbreviations of [true,false]) {
     const p=openPage(); p.consent();p.set('desiredRoute','AIチャットで調べてからクリニックへ相談したい');p.set('age','70～74歳');p.text('municipality','東京都北区');p.set('dialysisType','腹膜透析＋施設血液透析');p.set('urgency','安定');
-    p.$('includeOriginalInAnswer').checked=original;p.$('includeAbbreviationsInAnswer').checked=abbreviations;p.confirmAll();p.submit();
+    p.$('includeOriginalInAnswer').checked=original;p.$('includeAbbreviationsInAnswer').checked=abbreviations;
+    p.$('includeReferencesInAnswer').checked=true; // v4.42：別AIレビュー案内（追加確認の推奨）は⑤の表示に含まれるため、⑤を表示して検査
+    p.confirmAll();p.submit();
     const t=p.prompt(),fail=[...p.errors];
     if (t.includes('\nJ. 元の質問アンケート結果\n')!==original) fail.push('Jの出力指定がチェックと一致しない');
     if (t.includes('\nI. 略称対応表\n')!==abbreviations) fail.push('Iの出力指定がチェックと一致しない');
@@ -629,7 +794,8 @@ async function testMarkdownFlow() {
   if (!p.$('markdownStatus').textContent.includes('手動で貼り付け')) f.push('クリップボード権限拒否時の手動貼付案内がない');
   p.text('markdownContent','手動で貼り付けた内容');p.text('markdownFilename','回答');const n2=p.w.__downloads.length;p.$('saveMarkdownBtn').click();
   if (p.w.__downloadNames[n2]!=='回答.md') f.push('拡張子なしのファイル名へ .md が付かない');
-  p.$('resetBtn').click();if (!p.$('includeOriginalInAnswer').checked||!p.$('includeAbbreviationsInAnswer').checked||p.$('markdownContent').value) f.push('リセットで既定のチェックと保存欄が戻らない');
+  // v4.42：初期設定（簡易版）ではI・Jは表示しない
+  p.$('resetBtn').click();if (p.$('includeOriginalInAnswer').checked||p.$('includeAbbreviationsInAnswer').checked||p.$('markdownContent').value) f.push('リセットで既定のチェックと保存欄が戻らない');
   record('Markdown','コピー・回答取込・保存・権限拒否・リセット',[...p.errors,...f]);p.close();
 }
 
@@ -769,7 +935,7 @@ async function testV439() {
     p.w.eval('savedCases=[captureCurrentCase()]'); const csv = p.w.eval('casesToCsvText()');
     const header = p.w.eval('parseCSV')(csv)[0];
     // v4.40で利用例の列を末尾に追加したため、既存2列はその直前に並ぶ（列名・相対順は不変）
-    if (header.slice(-3, -1).join('|') !== 'AI回答に元の質問アンケート結果を表示|AI回答に略称対応表を表示') f.push('出力設定2列が利用例列の直前にない: ' + header.slice(-3, -1).join('|'));
+    if (header.slice(-5, -3).join('|') !== 'AI回答に元の質問アンケート結果を表示|AI回答に略称対応表を表示') f.push('出力設定2列が利用例列の直前にない: ' + header.slice(-5, -3).join('|'));
     const q = openPage(); q.consent();
     q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(csv))[0]);
     if (q.$('includeOriginalInAnswer').checked || q.$('includeAbbreviationsInAnswer').checked) f.push('出力設定「なし」がCSV往復で復元されない');
@@ -934,7 +1100,9 @@ async function testV440() {
   // 3 OFFの相談文はONから利用例の指示を除いたもの以外に違いがない（既存部分の不変）
   {
     const f = [];
-    const p = openPage(); p.consent(); baseAI(p); p.confirmAll(); p.submit(); const on = p.prompt();
+    const p = openPage(); p.consent(); baseAI(p);
+    p.d.querySelectorAll('input[name="answerFormat"]').forEach(r => { r.checked = r.value === '詳細版'; }); // v4.41：v4.40構成（詳細版）で検査
+    p.confirmAll(); p.submit(); const on = p.prompt();
     box(p).checked = false; p.confirmAll(); p.submit(); const off = p.prompt();
     if (on.length <= off.length) f.push('ONの相談文がOFFより長くない');
     // OFFの各行がONにも同じ順序で現れる（既存の行は書き換えない。自己監査の行数指定のみ例外）
@@ -963,8 +1131,9 @@ async function testV440() {
     p.confirmAll(); p.submit(); const prompt = p.prompt();
     p.w.eval('savedCases=[captureCurrentCase()]'); const csv = p.w.eval('casesToCsvText()');
     const rows = p.w.eval('parseCSV')(csv), header = rows[0];
-    if (header.slice(-3).join('|') !== S.outputHeaders.join('|')) f.push('出力設定列の並びが仕様と異なる: ' + header.slice(-3).join('|'));
-    if (header[header.length - 1] !== S.csvHeader) f.push('利用例の列が末尾にない');
+    // v4.41で回答形式の列を末尾に追加したため、利用例の列はその直前（列名・相対順は不変）
+    if (header.slice(-5, -2).join('|') !== S.outputHeaders.join('|')) f.push('出力設定列の並びが仕様と異なる: ' + header.slice(-5, -2).join('|'));
+    if (header[header.length - 3] !== S.csvHeader) f.push('利用例の列が回答形式の列の直前にない');
     if (rows[1][header.indexOf(S.csvHeader)] !== (on ? 'あり' : 'なし')) f.push('CSVの値が「あり／なし」で保存されない');
     const q = openPage(); q.consent(); box(q).checked = !on;
     q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(csv))[0]);
@@ -1039,17 +1208,436 @@ async function testV440() {
   // 11 任意：v4.39と比較し、OFFの相談文が完全一致することを確認（--baseline <v4.39のindex.html>）
   const baseline = opt('--baseline', '');
   if (baseline) {
+    // v4.41以降は詳細版で比較し、詳細版に追加した分割回答の1行を除く
     const BASE = fs.readFileSync(path.resolve(baseline), 'utf8');
-    const gen = (html, seed, setOff) => {
-      const dom = new JSDOM(html, { runScripts: 'dangerously', pretendToBeVisual: true, url: 'https://example.test/', beforeParse(w) { w.Math.random = mulberry32(seed); w.HTMLElement.prototype.scrollIntoView = () => {}; w.scrollTo = () => {}; w.confirm = () => true; w.alert = () => {}; } });
-      const w = dom.window, $ = id => w.document.getElementById(id);
-      $('useRulesConfirm').checked = true; $('useRulesConfirm').dispatchEvent(new w.Event('change', { bubbles: true }));
-      if (setOff) $(S.checkboxId).checked = false;
-      $('randomCaseBtn').click(); const out = $('researchPrompt').value; w.close(); return out;
-    };
     let diff = 0;
-    for (let s = 1; s <= 100; s++) if (gen(BASE, s, false) !== gen(HTML, s, true)) diff++;
-    record('v4.40', `OFF時の相談文がv4.39と完全一致（ランダム100件）`, diff ? [`${diff}件で不一致`] : []);
+    for (let s = 1; s <= 100; s++) if (genRandomPrompt(BASE, s) !== removeLineStarting(genRandomPrompt(HTML, s, { examples: false, format: '詳細版', refs: true, abbr: true, orig: true }), SPEC_V441.detailed.splitStart)) diff++;
+    record('v4.40', `OFF時の相談文がv4.39と完全一致（詳細版・分割回答の1行を除く、ランダム100件）`, diff ? [`${diff}件で不一致`] : []);
+  }
+
+}
+
+// v4.41「回答の詳しさ（簡易版／詳細版）」の回帰テスト（依頼仕様書の第8項）
+async function testV441() {
+  const S = SPEC_V441, E = SPEC_V440;
+  const baseAI = (pg, userType = '家族・支援者') => { pg.set('userType', userType); pg.set('desiredRoute', 'AIチャットで調べてからクリニックへ相談したい'); pg.set('age', '70～74歳'); pg.text('municipality', '東京都北区'); pg.set('dialysisType', '施設血液透析'); pg.set('urgency', '安定'); };
+  const radios = pg => [...pg.d.querySelectorAll(`input[name="${S.radioName}"]`)];
+  const setFmt = (pg, v) => radios(pg).forEach(r => { r.checked = r.value === v; });
+  const fmtOf = pg => (radios(pg).find(r => r.checked) || {}).value;
+  // v4.42：回答形式で初期値の変わる⑤・I・Jは、比較のため両形式とも表示（ON）にそろえる
+  const gen = (setup, fmt, on) => { const p = openPage(); p.consent(); setup(p); setFmt(p, fmt); p.$(E.checkboxId).checked = on; ['includeReferencesInAnswer', 'includeAbbreviationsInAnswer', 'includeOriginalInAnswer'].forEach(id => { p.$(id).checked = true; }); p.confirmAll(); p.submit(); const out = p.prompt(); const errs = [...p.errors]; p.close(); return { out, errs }; };
+
+  // 1 UI：初期は簡易版、2択と説明文、利用例チェックとは別の設定
+  {
+    const f = [];
+    const p = openPage(); p.consent();
+    const rs = radios(p);
+    if (rs.map(r => r.value).join('|') !== S.values.join('|')) f.push('選択肢が「簡易版／詳細版」の2つでない');
+    if (fmtOf(p) !== '簡易版') f.push('初期状態が簡易版でない');
+    if (rs.some(r => r.type !== 'radio')) f.push('ラジオボタンでない');
+    rs.forEach((r, i) => { const t = r.closest('label').textContent; if (!t.includes(S.labels[i])) f.push(`表示名が仕様と異なる: ${S.labels[i]}`); if (!t.includes(S.descriptions[i])) f.push(`説明文が仕様と異なる: ${S.values[i]}`); });
+    if (!rs[0] || !rs[0].closest('#caseForm')) f.push('入力フォームの外にある');
+    if (rs[0] && rs[0].closest('label').contains(p.$(E.checkboxId))) f.push('利用例チェックと同じ項目にまとまっている');
+    record('v4.41', '初期状態は簡易版・2択と説明文', [...p.errors, ...f]); p.close();
+  }
+
+  // 2 4パターン × 職員・家族・本人
+  const routes = [
+    ['職員', p => baseAI(p, V.staffUser), { staff: true, self: false }],
+    ['家族・支援者', p => baseAI(p), { staff: false, self: false }],
+    ['患者本人', p => baseAI(p, V.selfUser), { staff: false, self: true }],
+  ];
+  for (const [rname, setup, br] of routes) for (const fmt of S.values) for (const on of [true, false]) {
+    const p = openPage(); p.consent(); setup(p); setFmt(p, fmt); p.$(E.checkboxId).checked = on; p.confirmAll(); p.submit();
+    const f = checkPrompt(p.prompt(), br, p); // 既存の安全規則・S3・I/J・利用例・回答形式を同時に検査
+    record('v4.41', `${fmt}・利用例${on ? 'ON' : 'OFF'}・${rname}`, [...p.errors, ...f]); p.close();
+  }
+
+  // 3 調査内容は共通：第5部見出しより前と、第6部（自己監査の表示行を除く）は簡易版・詳細版で同一
+  for (const on of [true, false]) {
+    const f = [];
+    const a = gen(p => baseAI(p), '簡易版', on), b = gen(p => baseAI(p), '詳細版', on);
+    const head = x => x.slice(0, x.indexOf('\n第5部　'));
+    if (head(a.out) !== head(b.out)) f.push('第1部～第4部（第5部見出しより前）が簡易版と詳細版で異なる');
+    const tail = x => x.slice(x.indexOf('第6部　自己監査')).split('\n').filter(l => !l.startsWith('「AI自己監査記録（AIの自己申告）」')).join('\n');
+    if (tail(a.out) !== tail(b.out)) f.push('第6部（自己監査の表示行を除く）が簡易版と詳細版で異なる');
+    // 簡易版も第5部の整理の構成（0章～H・B-費用・H0・利用例・H-例）をすべて保持する
+    const SEP = '\n\n━━━━━━━━━━━━━━━━━━━━\n';
+    const body5 = x => x.slice(x.indexOf('\n第5部　'), x.indexOf(SEP + (x.includes(SPEC_V441.simple.block) ? '第5部の2' : '第6部　自己監査')));
+    const strip = x => body5(x).split('\n').slice(2).filter(l => !l.startsWith(S.detailed.splitStart)).join('\n');
+    if (strip(a.out) !== strip(b.out)) f.push('簡易版の内部整理の構成（第5部本体）が詳細版と異なる');
+    record('v4.41', `調査内容・内部整理の構成が共通（利用例${on ? 'ON' : 'OFF'}）`, [...a.errs, ...b.errs, ...f]);
+  }
+
+  // 4 簡易版のON時も既存の行を書き換えず追加のみ（自己監査の行数を除く）
+  {
+    const f = [];
+    const on = gen(p => baseAI(p), '簡易版', true).out, off = gen(p => baseAI(p), '簡易版', false).out;
+    const onLines = on.split('\n'); let j = 0;
+    for (const line of off.split('\n')) {
+      const target = line.replace(S.simple.audit(13), S.simple.audit(14)).replace('（S1～S6）', '（S1～S7）');
+      while (j < onLines.length && onLines[j] !== target) j++;
+      if (j >= onLines.length) { f.push('OFFの行がONで書き換えられている: ' + line.slice(0, 60)); break; }
+      j++;
+    }
+    record('v4.41', '簡易版：利用例ONは追加のみ（自己監査の行数・S7の有無を除く）', f);
+  }
+
+  // 5 CSV保存・復元（回答形式×利用例）と列の位置
+  for (const fmt of S.values) for (const on of [true, false]) {
+    const f = [];
+    const p = openPage(); p.consent(); baseAI(p); p.text('caseId', 'F' + fmt + on); setFmt(p, fmt); p.$(E.checkboxId).checked = on;
+    p.confirmAll(); p.submit(); const prompt = p.prompt();
+    p.w.eval('savedCases=[captureCurrentCase()]'); const csv = p.w.eval('casesToCsvText()');
+    const rows = p.w.eval('parseCSV')(csv), header = rows[0];
+    // v4.42で⑤の列を末尾に追加したため、回答形式の列はその直前（列名・相対順は不変）
+    if (header.slice(-5, -1).join('|') !== [...E.outputHeaders, S.csvHeader].join('|')) f.push('出力設定列の並びが仕様と異なる: ' + header.slice(-5, -1).join('|'));
+    if (rows[1][header.length - 2] !== fmt) f.push('回答形式の値が保存されない');
+    const q = openPage(); q.consent(); setFmt(q, fmt === '簡易版' ? '詳細版' : '簡易版'); q.$(E.checkboxId).checked = !on;
+    q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(csv))[0]);
+    if (fmtOf(q) !== fmt || q.$(E.checkboxId).checked !== on) f.push('CSV往復で回答形式・利用例が復元されない');
+    if (q.status().includes('回答の詳しさの列がない')) f.push('新形式CSVで旧版の注意が表示された');
+    q.confirmAll(); q.submit(); if (q.prompt() !== prompt) f.push('CSV往復後に相談文が一致しない');
+    record('v4.41', `CSV保存・復元（${fmt}・利用例${on ? 'ON' : 'OFF'}）`, [...p.errors, ...q.errors, ...f]); p.close(); q.close();
+  }
+
+  // 6 旧CSV（v4.40・v4.39・最小形式）は初期設定の簡易版とし、その旨を表示
+  {
+    const f = [];
+    const csvs = [
+      ['v4.40形式', '﻿識別コード,保存日時,年齢帯,AI回答に元の質問アンケート結果を表示,AI回答に略称対応表を表示,AI回答に具体的なサービス利用例を表示\r\nL40,20261015120000,70～74歳,あり,なし,なし\r\n'],
+      ['v4.39形式', '﻿識別コード,保存日時,年齢帯,AI回答に元の質問アンケート結果を表示,AI回答に略称対応表を表示\r\nL39,20261011120000,70～74歳,なし,あり\r\n'],
+      ['最小形式', '﻿識別コード,保存日時,年齢帯\r\nL1,202609011000,70～74歳\r\n'],
+    ];
+    for (const [name, csv] of csvs) {
+      const q = openPage(); q.consent(); setFmt(q, '詳細版');
+      q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(csv))[0]);
+      if (fmtOf(q) !== '簡易版') f.push(`${name}で簡易版にならない`);
+      if (!q.status().includes(S.legacyNotice)) f.push(`${name}で旧版の注意が表示されない`);
+      if (name === 'v4.40形式' && (q.$(E.checkboxId).checked || !q.$('includeOriginalInAnswer').checked || q.$('includeAbbreviationsInAnswer').checked)) f.push('v4.40形式の利用例・I・J設定が維持されない');
+      f.push(...q.errors); q.close();
+    }
+    record('v4.41', '旧CSVは簡易版として復元し注意を表示', f);
+  }
+
+  // 7 詳細版だけの変更も未保存の変更として上書き確認
+  {
+    const f = [];
+    const p = openPage(); p.consent(); setFmt(p, '詳細版');
+    let asked = 0; p.w.confirm = () => { asked++; return false; };
+    p.w.eval('applyCaseToForm')(p.w.eval('rowsToCases')(p.w.eval('parseCSV')('﻿識別コード,保存日時,年齢帯\r\nL1,202609011000,70～74歳\r\n'))[0]);
+    if (!asked) f.push('詳細版を選んだだけの未保存入力で上書き確認が出ない');
+    if (fmtOf(p) !== '詳細版') f.push('上書きを取り消したのに設定が変わった');
+    record('v4.41', '詳細版の選択を未保存の変更として扱う', [...p.errors, ...f]); p.close();
+  }
+
+  // 8 すべて消去で簡易版・利用例ONに戻る
+  {
+    const f = [];
+    const p = openPage(); p.consent(); setFmt(p, '詳細版'); p.$(E.checkboxId).checked = false; p.$('resetBtn').click();
+    if (fmtOf(p) !== '簡易版') f.push('すべて消去後に簡易版に戻らない');
+    if (!p.$(E.checkboxId).checked) f.push('すべて消去後に利用例がONに戻らない');
+    record('v4.41', 'すべて消去で簡易版・利用例ONに戻る', [...p.errors, ...f]); p.close();
+  }
+
+  // 9 ランダム架空症例：回答形式・利用例の選択を保持
+  for (const fmt of S.values) for (const on of [true, false]) {
+    const p = openPage(SEED + fmt.length + (on ? 10 : 20)); p.consent(); setFmt(p, fmt); p.$(E.checkboxId).checked = on;
+    let bad = 0; const f = [];
+    for (let i = 0; i < 15; i++) {
+      p.$('randomCaseBtn').click();
+      if (fmtOf(p) !== fmt || p.$(E.checkboxId).checked !== on) { f.push('ランダム生成で設定が変わった'); break; }
+      const r = checkPrompt(p.prompt(), expectedBranch(p.$('userType').value, p.$('desiredRoute').value), p);
+      if (r.length) { bad++; if (bad === 1) f.push(...r); }
+    }
+    if (bad) f.push(`${bad}/15件で失敗`);
+    record('v4.41', `ランダム架空症例15件（${fmt}・利用例${on ? 'ON' : 'OFF'}・選択保持）`, [...p.errors, ...f]); p.close();
+  }
+
+  // 10 個人情報確認ゲートは両形式で維持
+  for (const fmt of S.values) {
+    const f = [];
+    const p = openPage(); p.consent(); baseAI(p); setFmt(p, fmt); p.text('notes', '連絡先は090-1234-5678です'); p.confirmAll(); p.submit();
+    if (p.prompt()) f.push('電話番号を含むのに相談文が生成された');
+    const q = openPage(); q.consent(); baseAI(q); setFmt(q, fmt); q.submit();
+    if (q.prompt()) f.push('目視確認なしで相談文が生成された');
+    record('v4.41', `個人情報確認ゲートの維持（${fmt}）`, [...p.errors, ...q.errors, ...f]); p.close(); q.close();
+  }
+
+  // 11 任意：詳細版はv4.40と、分割回答の1行を除いて完全一致（--baseline440 <v4.40のindex.html>）
+  const base440 = opt('--baseline440', '');
+  if (base440) {
+    const BASE = fs.readFileSync(path.resolve(base440), 'utf8');
+    let diff = 0;
+    for (let s = 1; s <= 50; s++) for (const on of [true, false]) {
+      const a = genRandomPrompt(BASE, s, { examples: on }), b = genRandomPrompt(HTML, s, { examples: on, format: '詳細版', refs: true, abbr: true, orig: true });
+      if (a !== removeLineStarting(b, S.detailed.splitStart)) diff++;
+    }
+    record('v4.41', '詳細版の相談文がv4.40と一致（分割回答の1行を除く、ランダム50件×利用例ON/OFF）', diff ? [`${diff}件で不一致`] : []);
+  }
+}
+
+// v4.42「回答に含める補足情報（⑤・I・J）の表示設定」の回帰テスト（依頼仕様書の第9項）
+async function testV442() {
+  const S = SPEC_V442, F = SPEC_V441, E = SPEC_V440;
+  const fire = (pg, el, t) => el.dispatchEvent(new pg.w.Event(t, { bubbles: true }));
+  const radios = pg => [...pg.d.querySelectorAll('input[name="answerFormat"]')];
+  // 利用者の操作として回答形式を切り替える（changeイベントを伴う）
+  const chooseFmt = (pg, v) => { const r = radios(pg).find(x => x.value === v); r.checked = true; fire(pg, r, 'change'); };
+  // 利用者の操作として表示項目を切り替える（changeイベントを伴う）
+  const toggle = (pg, id, v) => { pg.$(id).checked = v; fire(pg, pg.$(id), 'change'); };
+  const state = pg => S.ids.map(id => pg.$(id).checked);
+  const baseAI = (pg, userType = '家族・支援者') => { pg.set('userType', userType); pg.set('desiredRoute', 'AIチャットで調べてからクリニックへ相談したい'); pg.set('age', '70～74歳'); pg.text('municipality', '東京都北区'); pg.set('dialysisType', '施設血液透析'); pg.set('urgency', '安定'); };
+  const setAll = (pg, fmt, ex, [refs, abbr, orig]) => { radios(pg).forEach(r => { r.checked = r.value === fmt; }); pg.$(E.checkboxId).checked = ex; pg.$(S.ids[0]).checked = refs; pg.$(S.ids[1]).checked = abbr; pg.$(S.ids[2]).checked = orig; };
+  const combos = [[true, true, true], [false, false, false], [true, false, false], [false, true, false], [false, false, true], [true, true, false], [true, false, true], [false, true, true]];
+  const label = ([r, i, j]) => `⑤${r ? 'ON' : 'OFF'}・I${i ? 'ON' : 'OFF'}・J${j ? 'ON' : 'OFF'}`;
+
+  // 1 UI：3項目の設置と表示名、簡易版の初期値（すべてOFF）、質問項目は増えていない
+  {
+    const f = [];
+    const p = openPage(); p.consent();
+    S.ids.forEach((id, k) => { const el = p.$(id); if (!el) { f.push(`${id} がない`); return; } if (el.type !== 'checkbox') f.push(`${id} がチェックボックスでない`); if (!el.closest('label').textContent.includes(S.labels[k])) f.push(`表示名が仕様と異なる: ${S.labels[k]}`); });
+    if (state(p).some(Boolean)) f.push('簡易版の初期値がすべてOFFでない');
+    if (p.d.querySelector('input[name="answerFormat"]:checked').value !== '簡易版') f.push('初期の回答形式が簡易版でない');
+    const sel = [...p.d.querySelectorAll('#caseForm select')];
+    if (sel.map(x => x.id).join('|') !== S.questions.selects.join('|')) f.push('選択式の質問項目が変わった');
+    if (sel.reduce((n, x) => n + x.options.length, 0) !== S.questions.optionTotal) f.push('選択肢の総数が変わった');
+    for (const [g, n] of Object.entries(S.questions.groups)) if (p.d.querySelectorAll(`#${g} input`).length !== n) f.push(`${g} の項目数が変わった`);
+    if ([...p.d.querySelectorAll('#caseForm input[type=text], #caseForm textarea')].map(x => x.id).join('|') !== S.questions.texts.join('|')) f.push('記述式の項目が変わった');
+    record('v4.42', '3項目の設置・簡易版の初期値OFF・質問項目の不変', [...p.errors, ...f]); p.close();
+  }
+
+  // 2 回答形式の切替で初期値が切り替わる／手動で変更した項目は上書きしない
+  {
+    const f = [];
+    const p = openPage(); p.consent();
+    chooseFmt(p, '詳細版'); if (!state(p).every(Boolean)) f.push('詳細版に切り替えてもすべてONにならない');
+    chooseFmt(p, '簡易版'); if (state(p).some(Boolean)) f.push('簡易版に戻してもすべてOFFにならない');
+    toggle(p, S.ids[0], true); // 簡易版で⑤だけON
+    chooseFmt(p, '詳細版'); chooseFmt(p, '簡易版');
+    if (state(p).join() !== [true, false, false].join()) f.push('簡易版で手動ONにした⑤が切替で上書きされた: ' + state(p));
+    const q = openPage(); q.consent(); chooseFmt(q, '詳細版');
+    toggle(q, S.ids[1], false); toggle(q, S.ids[2], false); // 詳細版でI・JだけOFF
+    chooseFmt(q, '簡易版'); chooseFmt(q, '詳細版');
+    if (state(q).join() !== [true, false, false].join()) f.push('詳細版で手動OFFにしたI・Jが切替で上書きされた: ' + state(q));
+    record('v4.42', '回答形式の切替で初期値を適用し、手動変更は保持', [...p.errors, ...q.errors, ...f]); p.close(); q.close();
+  }
+
+  // 3 代表的な組み合わせ：回答形式×利用例×⑤・I・J（8通り）をすべて検査
+  for (const fmt of F.values) for (const ex of [true, false]) for (const c of combos) {
+    const p = openPage(); p.consent(); baseAI(p); setAll(p, fmt, ex, c); p.confirmAll(); p.submit();
+    record('v4.42', `${fmt}・利用例${ex ? 'ON' : 'OFF'}・${label(c)}`, [...p.errors, ...checkPrompt(p.prompt(), { staff: false, self: false }, p)]); p.close();
+  }
+  for (const [rname, ut, br] of [['職員', V.staffUser, { staff: true, self: false }], ['患者本人', V.selfUser, { staff: false, self: true }]]) for (const fmt of F.values) for (const refs of [true, false]) {
+    const p = openPage(); p.consent(); baseAI(p, ut); setAll(p, fmt, true, [refs, false, false]); p.confirmAll(); p.submit();
+    record('v4.42', `${rname}・${fmt}・⑤${refs ? 'ON' : 'OFF'}`, [...p.errors, ...checkPrompt(p.prompt(), br, p)]); p.close();
+  }
+
+  // 4 調査指示は表示設定に左右されない：第1部～第4部（症例データを含む）は⑤・I・Jの全組み合わせで同一
+  for (const fmt of F.values) {
+    const f = []; let first = null;
+    for (const c of combos) {
+      const p = openPage(); p.consent(); baseAI(p); setAll(p, fmt, true, c); p.confirmAll(); p.submit();
+      const out = p.prompt(), head = out.slice(0, out.indexOf('\n第5部　'));
+      if (first === null) first = head; else if (head !== first) f.push(`第1部～第4部が表示設定で変わった: ${label(c)}`);
+      const orig = p.w.eval('conditionLines()'); if (!head.includes(orig)) f.push(`症例データが欠けた: ${label(c)}`);
+      f.push(...p.errors); p.close();
+    }
+    record('v4.42', `調査指示と症例データは表示設定で不変（${fmt}）`, f);
+  }
+
+  // 5 冗長化しない：⑤OFFの指示は1回だけ、I・J・⑤の出力選択は1か所で指定
+  for (const fmt of F.values) {
+    const f = [];
+    const p = openPage(); p.consent(); baseAI(p); setAll(p, fmt, true, [false, false, false]); p.confirmAll(); p.submit();
+    const out = p.prompt(), count = s => out.split(s).length - 1;
+    if (count(S.refsOff.marker) !== 1) f.push('⑤OFFの指示が1回でない');
+    if (count('Markdownリンク「[短いページ名](完全URL)」') !== 1) f.push('リンク形式の指示が1回でない');
+    if (count(S.abbrOffNote) !== 1) f.push('略称の初出説明の指示が1回でない');
+    if (count('回答末尾の出力選択：') !== 1) f.push('出力選択の指定が1か所でない');
+    record('v4.42', `表示設定の指示が重複しない（${fmt}）`, [...p.errors, ...f]); p.close();
+  }
+
+  // 6 CSV：保存・復元（回答形式×⑤・I・J）、列の位置、復元後も切替で上書きしない
+  for (const fmt of F.values) for (const c of [[true, false, true], [false, true, false]]) {
+    const f = [];
+    const p = openPage(); p.consent(); baseAI(p); p.text('caseId', 'D' + fmt + c.join('')); setAll(p, fmt, true, c);
+    p.confirmAll(); p.submit(); const prompt = p.prompt();
+    p.w.eval('savedCases=[captureCurrentCase()]'); const csv = p.w.eval('casesToCsvText()');
+    const rows = p.w.eval('parseCSV')(csv), header = rows[0];
+    if (header.slice(-5).join('|') !== [...E.outputHeaders, F.csvHeader, S.csvHeader].join('|')) f.push('出力設定列の並びが仕様と異なる: ' + header.slice(-5).join('|'));
+    if (rows[1][header.length - 1] !== (c[0] ? 'あり' : 'なし')) f.push('⑤の値が保存されない');
+    const q = openPage(); q.consent(); setAll(q, fmt === '簡易版' ? '詳細版' : '簡易版', false, c.map(x => !x));
+    q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(csv))[0]);
+    if (state(q).join() !== c.join() || q.d.querySelector('input[name="answerFormat"]:checked').value !== fmt) f.push('CSV往復で表示設定が復元されない');
+    q.confirmAll(); q.submit(); if (q.prompt() !== prompt) f.push('CSV往復後に相談文が一致しない');
+    chooseFmt(q, fmt === '簡易版' ? '詳細版' : '簡易版');
+    if (state(q).join() !== c.join()) f.push('読み込んだ表示設定が回答形式の切替で上書きされた');
+    toggle(q, S.ids[0], !c[0]); q.confirmAll(); q.submit();
+    if (q.prompt().includes(S.refsOff.marker) !== c[0]) f.push('読み込み後に表示設定を変えて再生成できない');
+    record('v4.42', `CSV保存・復元（${fmt}・${label(c)}）`, [...p.errors, ...q.errors, ...f]); p.close(); q.close();
+  }
+
+  // 7 旧CSV：⑤の列がなければ「表示する」（従来の出力）とし、I・Jは保存値（列がなければ表示する）
+  {
+    const f = [];
+    const csvs = [
+      ['v4.41形式', '﻿識別コード,保存日時,年齢帯,AI回答に元の質問アンケート結果を表示,AI回答に略称対応表を表示,AI回答に具体的なサービス利用例を表示,AIの回答形式\r\nL41,20261015130000,70～74歳,なし,あり,あり,簡易版\r\n', [true, true, false], '簡易版'],
+      ['v4.40形式', '﻿識別コード,保存日時,年齢帯,AI回答に元の質問アンケート結果を表示,AI回答に略称対応表を表示,AI回答に具体的なサービス利用例を表示\r\nL40,20261015120000,70～74歳,あり,なし,なし\r\n', [true, false, true], '簡易版'],
+      ['最小形式', '﻿識別コード,保存日時,年齢帯\r\nL1,202609011000,70～74歳\r\n', [true, true, true], '簡易版'],
+    ];
+    for (const [name, csv, expect, fmt] of csvs) {
+      const q = openPage(); q.consent();
+      q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(csv))[0]);
+      if (state(q).join() !== expect.join()) f.push(`${name}の表示設定が期待と異なる: ${state(q)}`);
+      if (q.d.querySelector('input[name="answerFormat"]:checked').value !== fmt) f.push(`${name}の回答形式が期待と異なる`);
+      if (!q.status().includes(S.legacyNotice)) f.push(`${name}で⑤の旧版注意が表示されない`);
+      if (q.$('age').value !== '70～74歳') f.push(`${name}の症例情報が変わった`);
+      q.confirmAll(); q.text('municipality', '東京都北区'); q.set('desiredRoute', 'AIチャットで調べてからクリニックへ相談したい'); q.set('dialysisType', '施設血液透析'); q.set('urgency', '安定'); q.confirmAll(); q.submit();
+      f.push(...checkPrompt(q.prompt(), expectedBranch(q.$('userType').value, q.$('desiredRoute').value), q).map(x => `${name}: ${x}`));
+      f.push(...q.errors); q.close();
+    }
+    record('v4.42', '旧CSV（v4.41・v4.40・最小形式）の後方互換', f);
+  }
+
+  // 8 未保存の変更の判定：初期設定どおりなら確認なし、手動変更があれば上書き確認
+  {
+    const f = [];
+    const legacy = '﻿識別コード,保存日時,年齢帯\r\nL1,202609011000,70～74歳\r\n';
+    const p = openPage(); p.consent(); let asked = 0; p.w.confirm = () => { asked++; return true; };
+    p.w.eval('applyCaseToForm')(p.w.eval('rowsToCases')(p.w.eval('parseCSV')(legacy))[0]);
+    if (asked) f.push('初期設定のままなのに上書き確認が出た');
+    const q = openPage(); q.consent(); let asked2 = 0; q.w.confirm = () => { asked2++; return false; };
+    toggle(q, S.ids[2], true);
+    q.w.eval('applyCaseToForm')(q.w.eval('rowsToCases')(q.w.eval('parseCSV')(legacy))[0]);
+    if (!asked2) f.push('Jを手動でONにした状態で上書き確認が出ない');
+    record('v4.42', '表示設定の未保存変更の判定', [...p.errors, ...q.errors, ...f]); p.close(); q.close();
+  }
+
+  // 9 すべて消去：簡易版・3項目OFFに戻り、手動変更の記録も消える
+  {
+    const f = [];
+    const p = openPage(); p.consent(); chooseFmt(p, '詳細版'); toggle(p, S.ids[1], false);
+    p.$('resetBtn').click();
+    if (p.d.querySelector('input[name="answerFormat"]:checked').value !== '簡易版' || state(p).some(Boolean)) f.push('すべて消去後に簡易版・3項目OFFにならない');
+    chooseFmt(p, '詳細版'); if (!state(p).every(Boolean)) f.push('すべて消去後も手動変更の記録が残り、詳細版の初期値が適用されない');
+    record('v4.42', 'すべて消去で初期状態に戻る', [...p.errors, ...f]); p.close();
+  }
+
+  // 10 ランダム架空症例：表示設定を保持
+  for (const fmt of F.values) for (const c of [[false, false, false], [true, false, true]]) {
+    const p = openPage(SEED + 42 + c.filter(Boolean).length); p.consent(); setAll(p, fmt, true, c);
+    let bad = 0; const f = [];
+    for (let i = 0; i < 10; i++) {
+      p.$('randomCaseBtn').click();
+      if (state(p).join() !== c.join()) { f.push('ランダム生成で表示設定が変わった'); break; }
+      const r = checkPrompt(p.prompt(), expectedBranch(p.$('userType').value, p.$('desiredRoute').value), p);
+      if (r.length) { bad++; if (bad === 1) f.push(...r); }
+    }
+    if (bad) f.push(`${bad}/10件で失敗`);
+    record('v4.42', `ランダム架空症例10件（${fmt}・${label(c)}・選択保持）`, [...p.errors, ...f]); p.close();
+  }
+
+  // 11 任意：⑤ONの相談文はv4.41と一致（I・OFF時の略称注記を除く）（--baseline441 <v4.41のindex.html>）
+  const base441 = opt('--baseline441', '');
+  if (base441) {
+    const BASE = fs.readFileSync(path.resolve(base441), 'utf8');
+    let diff = 0, n = 0;
+    for (let s = 1; s <= 10; s++) for (const fmt of F.values) for (const ex of [true, false]) for (const [i, j] of [[true, true], [false, false], [true, false]]) {
+      n++;
+      const a = genRandomPrompt(BASE, s, { examples: ex, format: fmt, abbr: i, orig: j });
+      const b = genRandomPrompt(HTML, s, { examples: ex, format: fmt, abbr: i, orig: j, refs: true });
+      if (a !== b.replace(S.abbrOffNote, '')) diff++;
+    }
+    record('v4.42', `⑤ONの相談文がv4.41と一致（略称注記を除く、${n}件）`, diff ? [`${diff}件で不一致`] : []);
+  }
+}
+
+// v4.42 公開前UI修正：CSV保存ボタン・目視確認欄の配置・未チェック時の案内
+async function testV442UI() {
+  const U = SPEC_V442_UI;
+  const before = (a, b) => !!(a.compareDocumentPosition(b) & 4); // a が b より前にある
+  const fill = pg => { pg.set('desiredRoute', 'AIチャットで調べてからクリニックへ相談したい'); pg.set('age', '70～74歳'); pg.text('municipality', '東京都北区'); pg.set('dialysisType', '施設血液透析'); pg.set('urgency', '安定'); };
+  const watch = pg => { const area = pg.$(U.areaId); area.__scrolled = 0; area.scrollIntoView = function () { this.__scrolled++; }; return area; };
+  const check = pg => { pg.$('privacyConfirm').checked = true; pg.$('privacyConfirm').dispatchEvent(new pg.w.Event('change', { bubbles: true })); };
+
+  // 1 ボタン名と視認性
+  {
+    const f = [];
+    const p = openPage(); p.consent();
+    const btn = p.$('saveCaseBtn');
+    if (btn.textContent.trim() !== U.saveLabel) f.push(`ボタン名が仕様と異なる: ${btn.textContent}`);
+    if (!btn.classList.contains(U.saveClass) || btn.classList.contains('secondary')) f.push('保存ボタンが強調用の表示になっていない');
+    const css = [...p.d.querySelectorAll('style')].map(x => x.textContent).join('');
+    if (!new RegExp(`\\.${U.saveClass}\\{[^}]*border:2px solid`).test(css)) f.push('保存ボタンに枠線の強調がない');
+    if (p.d.body.textContent.includes('「条件を保存」')) f.push('旧ボタン名「条件を保存」の案内文が残っている');
+    record('v4.42 UI', 'CSV保存ボタンの表示名と視認性', [...p.errors, ...f]); p.close();
+  }
+
+  // 2 配置：症例入力 → 繰り返し利用（識別コード → 保存ボタン）→ 目視確認 → AIへの調査依頼の設定
+  {
+    const f = [];
+    const p = openPage(); p.consent();
+    const pc = p.$('privacyConfirm'), area = p.$(U.areaId), reuse = p.$('saveCaseBtn').closest('.optional-box');
+    if (p.d.querySelectorAll('#privacyConfirm').length !== 1) f.push('目視確認チェックが1つでない');
+    if (!pc.closest('label').textContent.includes(U.privacyLabel)) f.push('目視確認の文言が変わった');
+    if (!reuse.querySelector('h3').textContent.includes('この症例を今後繰り返し利用する場合')) f.push('繰り返し利用の区画が見つからない');
+    const seq = [p.$('notes'), reuse, p.$('caseId'), p.$('saveCaseBtn'), pc, p.$('researchScopeBox'), p.$('answerFormatBox'), p.$('displayOptionsBox'), p.d.querySelector('button[type=submit]')];
+    for (let i = 1; i < seq.length; i++) if (!before(seq[i - 1], seq[i])) f.push(`配置順の異常: ${i}番目`);
+    if (reuse.nextElementSibling !== area || !area.contains(pc)) f.push('目視確認欄が保存ボタンの区画の直下にない');
+    record('v4.42 UI', '目視確認チェックの配置（保存ボタンの直下）', [...p.errors, ...f]); p.close();
+  }
+
+  // 3 未チェックでCSV保存 → 案内・スクロール・強調・フォーカス、保存しない。チェック後は保存できる
+  {
+    const f = [];
+    const p = openPage(); p.consent(); fill(p); p.text('caseId', 'U1');
+    const area = watch(p);
+    p.$('saveCaseBtn').click();
+    if (p.w.__downloads.length) f.push('未チェックなのにCSVが保存された');
+    if (!p.status().includes(U.message)) f.push('チェックが必要である旨が表示されない: ' + p.status());
+    if (!p.$('piiStatus').classList.contains('bad')) f.push('警告として表示されない');
+    if (!area.__scrolled) f.push('確認欄までスクロールしない');
+    if (!area.classList.contains(U.attentionClass)) f.push('確認欄が強調表示されない');
+    if (p.d.activeElement !== p.$('privacyConfirm')) f.push('チェックボックスにフォーカスが移らない');
+    check(p);
+    if (area.classList.contains(U.attentionClass)) f.push('チェック後も強調表示が残る');
+    p.$('saveCaseBtn').click();
+    if (p.w.__downloads.length !== 1 || p.w.eval('savedCases.length') !== 1) f.push('チェック後にCSVが保存されない');
+    record('v4.42 UI', '未チェック時のCSV保存の案内とチェック後の保存', [...p.errors, ...f]); p.close();
+  }
+
+  // 4 未チェックで相談文生成 → 同じ案内。チェック後は生成できる
+  {
+    const f = [];
+    const p = openPage(); p.consent(); fill(p);
+    const area = watch(p);
+    p.submit();
+    if (p.prompt()) f.push('未チェックなのに相談文が生成された');
+    if (!p.status().includes(U.message) || !area.__scrolled || !area.classList.contains(U.attentionClass)) f.push('相談文生成時に案内・スクロール・強調が行われない');
+    check(p); p.submit();
+    if (!p.prompt()) f.push('チェック後に相談文が生成されない');
+    record('v4.42 UI', '未チェック時の相談文生成の案内とチェック後の生成', [...p.errors, ...f]); p.close();
+  }
+
+  // 5 強調は一時的（一定時間で解除）
+  {
+    const f = [];
+    const p = openPage(); p.consent(); fill(p); watch(p);
+    p.$('saveCaseBtn').click();
+    await new Promise(r => setTimeout(r, 3400));
+    if (p.$(U.areaId).classList.contains(U.attentionClass)) f.push('強調表示が解除されない');
+    record('v4.42 UI', '強調表示は一時的', [...p.errors, ...f]); p.close();
+  }
+
+  // 6 個人情報の自動検出は従来どおり先に止める（目視確認があっても停止）
+  {
+    const f = [];
+    const p = openPage(); p.consent(); fill(p); p.text('notes', '連絡先は090-1234-5678です'); check(p);
+    p.$('saveCaseBtn').click(); p.submit();
+    if (p.w.__downloads.length || p.prompt()) f.push('個人情報を含むのに保存・生成された');
+    if (!p.status().includes('電話番号')) f.push('個人情報の停止理由が表示されない');
+    record('v4.42 UI', '個人情報の自動検出による停止は維持', [...p.errors, ...f]); p.close();
   }
 }
 
@@ -1070,6 +1658,9 @@ async function testV440() {
   await testMarkdownFlow();
   await testV439();
   await testV440();
+  await testV441();
+  await testV442();
+  await testV442UI();
 
   const failed = results.filter(r => r.failures.length);
   const bySuite = {};
