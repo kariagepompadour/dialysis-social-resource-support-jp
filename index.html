@@ -158,7 +158,7 @@
       <fieldset style="margin-top:16px"><legend class="label">今回、詳しく調べる領域（複数選択可）</legend><div class="checks compact" id="researchDomains">
         <label class="check"><input type="checkbox" value="介護保険" checked>介護保険</label><label class="check"><input type="checkbox" value="障害福祉" checked>障害福祉</label><label class="check"><input type="checkbox" value="医療費助成・公費" checked>医療費助成・公費</label><label class="check"><input type="checkbox" value="所得保障・生活困窮" checked>所得保障・生活困窮</label><label class="check"><input type="checkbox" value="移動・透析通院" checked>移動・透析通院</label><label class="check"><input type="checkbox" value="食事・服薬・家事・見守り" checked>食事・服薬・家事・見守り</label><label class="check"><input type="checkbox" value="住居" checked>住居</label><label class="check"><input type="checkbox" value="介護者支援" checked>介護者支援</label><label class="check"><input type="checkbox" value="就労" checked>就労</label><label class="check"><input type="checkbox" value="権利擁護" checked>権利擁護</label><label class="check"><input type="checkbox" value="地域独自制度" checked>地域独自制度</label>
       </div><p class="hint">初期状態では11領域すべてを調べるため、従来と同じ包括的な調査になります。必要に応じて外せます。すべて外した場合も、上の中核項目は確認します。</p></fieldset>
-      <fieldset style="margin-top:16px"><legend class="label">回答に加える情報</legend><div class="checks"><label class="check"><input type="checkbox" id="includeUsageExamples" checked>具体的なサービスの利用例を表示する</label></div><p class="hint">「知らないサービスは、希望することさえできない。」入力された生活状況から、本人やご家族がまだ知らないかもしれない支援の組み合わせを、生活場面ごとに3～5件程度示すようAIに依頼します。利用例は選択肢を広げるための情報で、制度を利用できるかの判断ではありません。外すと、従来（v4.39）と同じ回答構成になります。</p></fieldset>
+      <fieldset style="margin-top:16px"><legend class="label">回答に加える情報</legend><div class="checks"><label class="check"><input type="checkbox" id="includeUsageExamples" checked>具体的なサービスの利用例を表示する</label><label class="check"><input type="checkbox" id="includeCareplan">参考ケアプランを提案する</label></div><p class="hint">「知らないサービスは、希望することさえできない。」入力された生活状況から、本人やご家族がまだ知らないかもしれない支援の組み合わせを、生活場面ごとに3～5件程度示すようAIに依頼します。利用例は選択肢を広げるための情報で、制度を利用できるかの判断ではありません。外すと、利用例の章を含まない回答になります。</p><p class="hint">「参考ケアプランを提案する」を選ぶと、入力で確認できた生活上の課題ごとに、病気や障害の種類を問わず同じような困難への支援事例・公的資料を調べ、生活上の課題・目標・支援の組み合わせを表にした学習・検討用の参考例を示すようAIに依頼します。根拠を確認できた支援と、AIによる組み合わせ案・参考提案は区別して示されます。正式なケアプランではありません。初期設定では選ばれていません。</p></fieldset>
       <div class="field" style="margin-top:16px"><label for="researchRequest">その他の調査リクエスト（任意）</label><textarea id="researchRequest" maxlength="500" placeholder="例：車椅子のまま利用できる定期的な透析送迎を重点的に調べてほしい。すでに確認済みの制度は除き、それ以外の候補を探してほしい。"></textarea><span class="hint">上記にない困りごと、特に調べてほしい制度・支援、検索上の希望などを記載できます。個人を特定・推測できる情報は入力しないでください。</span><div class="counter"><span id="researchRequestCount">0</span>/500字</div></div>
     </section>
     <fieldset class="optional-box" id="answerFormatBox"><legend class="label">回答の詳しさ</legend><div class="checks"><label class="check"><input type="radio" name="answerFormat" value="簡易版" checked>簡易版（初期設定・おすすめ）<br><span class="hint">詳細版と同じ範囲を調査し、重要な支援方法・相談先・公式情報を読みやすく要約します。</span></label><label class="check"><input type="radio" name="answerFormat" value="詳細版">詳細版<br><span class="hint">調査結果を省略せず、制度の条件・費用・申請方法・根拠などを詳しく表示します。</span></label></div><p class="hint">どちらを選んでも、AIに求める調査の範囲と確認の厳密さは同じです。この設定は「具体的なサービスの利用例を表示する」とは別に選べます。</p></fieldset>
@@ -175,7 +175,7 @@
 </main>
 <footer>公開評価版 <span id="toolVersionFooter"></span>　架空症例専用です。実患者情報を用いる運用は対象外であり、公開利用者の入力内容やAI回答を作成者・公開者が収集することはありません。<br>Copyright (c) 2026 Hiromasa Akimoto　—　MIT License</footer>
 <script>
-  const TOOL_VERSION="4.42";
+  const TOOL_VERSION="4.43";
   const TOOL_VERSION_LABEL=`v${TOOL_VERSION}`;
   document.getElementById("toolVersionBadge").textContent=TOOL_VERSION_LABEL;
   document.getElementById("toolVersionFooter").textContent=TOOL_VERSION;
@@ -250,12 +250,13 @@
     const includeOriginal=$('includeOriginalInAnswer').checked;
     const includeAbbreviations=$('includeAbbreviationsInAnswer').checked;
     const includeReferences=$('includeReferencesInAnswer').checked;
+    const includeCareplan=$('includeCareplan').checked;
     const abbreviationSection=includeAbbreviations?'I. 略称対応表\n':'';
     const originalSection=includeOriginal?'J. 元の質問アンケート結果\n第3部の【元の質問アンケート結果】だけを、内容を変えずに複写する（ツール指摘は含めない）。':'';
     // Design decision (v4.42): ⑤ OFF hides only the URL list chapter(s); the official-page research is unchanged and evidence moves to short inline links.
     const detailedFormatForRefs=answerFormat()==='詳細版';
     const referencesOffNote=includeReferences?'':`
-⑤「公式情報・次の調査への案内」なし：${detailedFormatForRefs?'H「参照URL一覧と人による確認欄」、H-例、「追加確認の推奨」':'第5部の2の⑤'}を出力しない（見出しも出さない）。ただし、公式情報の検索と本文確認（R-1、S1～S6）は省略しない。確認した公式ページは内部で参照番号[n]として整理し、回答では[n]の代わりに、根拠を示す箇所へMarkdownリンク「[短いページ名](完全URL)」を置く。同じページの2回目以降はリンクを繰り返さず短いページ名だけでよく、URL文字列をそのまま本文に並べない。${detailedFormatForRefs?'0-A・B・B-費用の公式根拠の列':'①の表の公式根拠の列'}は必ずこの形で示す。公開事例の出典も、その利用例の区別の行に同じ形で示す。Hに課す規則（本文を確認できた公式ページだけ、推測したURLを載せない、「検証済み」と書かない）は、このリンクにも適用する。追加質問に答える場合も、第1部～第4部・第6部の規則を引き続き適用する。`;
+⑤「公式情報・次の調査への案内」なし：${detailedFormatForRefs?'H「参照URL一覧と人による確認欄」、H-例、'+(includeCareplan?'H-ケ、':'')+'「追加確認の推奨」':'第5部の2の⑤'}を出力しない（見出しも出さない）。ただし、公式情報の検索と本文確認（R-1、S1～S6）は省略しない。確認した公式ページは内部で参照番号[n]として整理し、回答では[n]の代わりに、根拠を示す箇所へMarkdownリンク「[短いページ名](完全URL)」を置く。同じページの2回目以降はリンクを繰り返さず短いページ名だけでよく、URL文字列をそのまま本文に並べない。${detailedFormatForRefs?'0-A・B・B-費用の公式根拠の列':'①の表の公式根拠の列'}は必ずこの形で示す。公開事例の出典も、その利用例の区別の行に同じ形で示す。${includeCareplan?'参考ケアプランの根拠資料（〔ケ①〕等）も、表の出典欄に同じ形で示す。':''}Hに課す規則（本文を確認できた公式ページだけ、推測したURLを載せない、「検証済み」と書かない）は、このリンクにも適用する。追加質問に答える場合も、第1部～第4部・第6部の規則を引き続き適用する。`;
     const outputOptions=`回答末尾の出力選択：I「略称対応表」${includeAbbreviations?'あり':'なし'}、J「元の質問アンケート結果」${includeOriginal?'あり':'なし'}。「なし」の節は見出しも本文も出力しない。Jを出力しない場合も第3部の症例データは調査に使用する。${includeAbbreviations?'':'略称対応表を出力しないため、本文で略称を使う場合は初出時に正式名称を添える。'}${referencesOffNote}`;
     const independentReview=!includeReferences?'':includeOriginal
       ?'完成レポート全体を別のWeb検索可能なAIへコピーし、「Jの症例条件と、この症例に適用される最新の公式一次情報に照らして、制度要件・地域独自ルール・制度移行・主体の区別・参照URLと根拠本文の一致について、誤りの可能性がある箇所だけを理由と根拠URL付きで指摘してください。全文の書き直しは不要です」と依頼できる旨を短く示す。別AIによる確認も人による最終確認の代替ではないこと、Jが元条件を含むため再入力は不要であることを添える。'
@@ -264,6 +265,57 @@
     // Design decision (v4.40): usage examples are appended only when checked, so the OFF prompt stays byte-identical to v4.39.
     // Rationale: examples widen options for patients/families but must never replace official-text checks or feed B without S4/S5.
     const includeExamples=$('includeUsageExamples').checked;
+    // Design decision (v4.43): the reference care plan is built per input-confirmed life difficulty from evidence found for any disease or disability; OFF keeps the v4.42 prompt unchanged.
+    const careplanRule=includeCareplan?`
+
+R-16【参考ケアプラン】「参考ケアプラン」の章は、本人・家族・ケアマネジャー等が、これまで気づかなかった支援の可能性を発見するための学習・検討用の参考例であり、完成したケアプランでも正式なケアプランでもない。次を守る。${includeExamples?'':'（R-15・S7は「具体的なサービスの利用例」を選んだ場合の規則・手順で、今回は使わないため欠番である。）'}
+(a) 課題は入力から取る：生活上の課題は、入力（食事、服薬、移動、見守り、送迎手段の継続性、支援者の状況、補足等）で確認できたものだけとし、各課題に根拠とした入力項目名を添える。病名、腎代替療法、手帳・受給者証等から生活上の困難を推定しない（R-2・R-14）。入力にない気がかりは課題とせず、「追加確認が必要な事項」に分ける。
+(b) 病名ではなく困難で調べる：同じ病気の人の事例を探すのではなく、同じような生活上の困難を抱えた人がどのような支援を受けているかを、疾患・障害の種類を問わず調べる。他の疾患・障害の事例は支援方法を知る参考として使い、その疾患・障害を本人の状態として書かない（R-2）。
+(c) 掲載する支援には、次の3区分のいずれかを必ず明記する。
+(ア)【根拠確認済み】公開資料で支援方法を確認できたもの。出典を示す。Bで制度上の条件を照合済みなら「B章の候補」、公式本文でサービスの存在だけを確認したなら「利用条件は要確認」、実践例・事業紹介で確認したなら「制度上の条件・地域での提供は要確認」と添える。
+(イ)【AIによる組み合わせ案】個々のサービスの存在は資料で確認できたが、それらを組み合わせた実践例は見つからないもの。次の文を添える：「AIによる組み合わせ案です。実際の利用可否やサービス間の調整については確認が必要です。」
+(ウ)【AIによる参考提案（未確認）】支援方法を裏付ける資料は確認できなかったが、入力された生活課題に照らして合理的で、検討する価値があるもの。実在するサービスとして紹介せず、今後の相談や調査で検討する支援の方向性として、計画の表とは別の欄に示す。次の文を添える：「AIによる参考提案です。この支援方法を裏付ける資料は確認できていないため、実現可能性の確認が必要です。」(ウ)では、制度名・サービス名・事業所名を新たに作らない。
+(d) 区分にかかわらず守ること：実在を確認できない制度・サービスを創作しない。未確認の利用条件を満たしていると断定しない。根拠を確認できた情報と、AIによる推論・提案を区別して書く。要介護度、障害支援区分、所得区分等を推定せず、要介護認定等が前提のサービスにはその旨を書く。利用頻度・回数は入力にない限り「要確認」とし、透析の回数を推定しない（R-2）。医療保険と介護保険の適用関係は公式本文で確認し、確認できなければ要確認とする（R-1・R-9）。
+(e) 根拠資料：制度の事実（対象条件、金額、窓口等）はR-1の公式本文だけを根拠とし、参照番号[n]を使う。支援方法の実践例には、国・自治体・社会福祉協議会・地域包括支援センター等の事業紹介、専門職団体・学会・研究機関の実践報告・事例報告、事業所の公式なサービス紹介（サービスの存在の確認に限る）を用いてよい。いずれも本文を実際に開いて確認できた場合に限り、〔ケ①〕〔ケ②〕…の番号でH-ケに示す。個人ブログ、まとめ記事、文例集、広告は根拠にしない。出典の文章を長く引用せず、要旨を自分の言葉で書き、出典にない内容を補わない。
+(f) 新たな候補：既存の調査（B）で挙がらなかった支援も、今回の調査で見つかれば掲載してよい。その場合は「今回の調査で新たに確認」と添え、制度上の利用条件や地域での提供状況が未確認ならその旨を書く。参考ケアプランに掲載したことを理由に、S4・S5の照合なしにBの候補へ加えない。
+(g) 既存の調査との関係：参考ケアプランの調査（S8）は、S1～S${includeExamples?7:6}（S3の中核確認、R-9の適用条件確認、S5.5の費用調査を含む）を省略・短縮する理由にならず、Bの採否・順位付けを変えない。
+(h) 本人の意思：本人が利用を希望していると推定しない。長期目標・短期目標はAIによる参考例として書き、本人・家族と合意した目標や本人の希望として書かない。利用の決定・申請・事業者等への連絡はR-7に従う。
+(i) 役割分担：${includeExamples?'「具体的なサービスの利用例」（生活場面からの気づき）や':''}C（時期の整理）と同じ説明を繰り返さない。同じ支援に触れる場合は${includeExamples?'「利用例2を参照」のように':''}参照で済ませ、参考ケアプランでは課題・目標・支援の構造を示す。
+(j) R-8の前段に該当する場合は、参考ケアプランの章も出力しない。`:'';
+    const careplanStep=includeCareplan?`
+
+S8【参考ケアプランの調査】S1～S${includeExamples?7:6}を終えた後に行う（S3の中核確認とBの候補化を省略・変更しない）。(1) R-16(a)に従い、入力で確認できた生活上の課題を、関係の強いものから最大5件選ぶ。(2) 課題ごとに、病名ではなく困難の内容で検索語を作り（例：「調理が困難 独居 配食」「服薬管理 薬剤師 訪問」「屋内移動 独居 福祉用具 住宅改修」）、R-16(e)の資料を調べる。(3) 確認できた支援方法をもとに、課題ごとに支援を組み立て、R-16(c)の区分を付ける。`:'';
+    const careplanNotice='「学習・検討用の参考例であり、正式なケアプランではありません。実際の計画は、本人の意向と担当ケアマネジャー等のアセスメントに基づいて作成されます。」';
+    const careplanSection=includeCareplan?`
+
+C-2. 参考ケアプラン（学習・検討用。0章・A～Gの字数とは別枠で全体1,500字程度を目安）
+見出しの直下に次の文を置く：${careplanNotice}
+S8・R-16に従い、入力で確認できた生活上の課題を3～5件取り上げ、居宅サービス計画書（第2表）の構成を参考に次の表で示す。専門用語には短い説明を添える。
+「生活上の課題（根拠にした入力項目）｜長期目標（AIによる参考例）｜短期目標（AIによる参考例）｜支援内容とサービスの組み合わせ｜区分（【根拠確認済み】または【AIによる組み合わせ案】）と出典｜留意点（要確認の条件を含む）」
+【AIによる組み合わせ案】の行には、R-16(c)の注意書きを添える。表の後に、課題ごとに1行で「参考にした事例・資料と、この症例との共通点・相違点」を示す。
+続けて「検討する支援の方向性（【AIによる参考提案（未確認）】）」を、表とは別に箇条書きで示し、各項目にR-16(c)の注意書きを添える。該当がなければ「なし」。
+最後に「追加確認が必要な事項」（入力にない気がかり、利用条件、地域での提供状況等）を箇条書きで示す。`:'';
+    const careplanSources=includeCareplan?`
+
+H-ケ. 参考ケアプランの根拠資料（字数上限外。実践例・事業紹介を使わなかった場合は「使用なし」と1行だけ書く）
+- 〔ケ①〕〔ケ②〕…ごとに、「番号｜ページ名｜発信元｜完全URL｜参照した支援方法の要旨（1行）｜AIが開いた日」を書く。1つの番号には1つのURLだけを対応させる。
+- 公式ページの参照番号[n]とは別の番号体系とし、Hの[n]の一覧に混在させない。制度の事実の根拠には使わない（R-16(e)）。
+- 各資料の直下に次の2行を置く：
+□URLが開く　□参考ケアプランの記載と出典本文が一致　□出典にない内容を補っていない
+確認者：＿＿　確認日：＿＿　備考：＿＿`:'';
+    const careplanCharNote=includeCareplan?'\n参考ケアプラン（C-2）は別枠で全体1,500字程度を目安とし、H-ケは上限外。参考ケアプランのために0章・A～Gの必須事項を削らず、字数の目安のためにR-16の区分・注意書き・要確認事項を削らない。':'';
+    const careplanAudit=includeCareplan?`
+${includeExamples?'⑮':'⑭'}参考ケアプラン：各課題に根拠の入力項目があるか、病名から推定した課題、目標を合意済み・本人の希望として書いた箇所の有無。【根拠確認済み】【AIによる組み合わせ案】【AIによる参考提案（未確認）】の件数と、注意書きの有無。出典（[n]・〔ケ〕）を本文で確認したか。実在を確認できない制度・サービス・事業所名を書いた箇所、未確認の利用条件を満たすと断定した箇所、頻度・回数・要介護度を推定した箇所、照合なしにBへ加えた候補の有無（R-16）`:'';
+    const careplanFinalCheck=includeCareplan?`
+- 参考ケアプランで、課題を入力から取り、3区分と注意書きを付け、実在を確認できない制度・サービスを創作せず、【AIによる参考提案（未確認）】を利用予定と誤認される形で書いていないか（R-16）。`:'';
+    const auditLineCount=13+(includeExamples?1:0)+(includeCareplan?1:0);
+    const simpleCareplanBlock=`
+参考ケアプラン（学習・検討用。①～④の字数とは別に800字程度を目安）
+見出しの直下に次の文を置く：${careplanNotice}
+内部で整理した「C-2. 参考ケアプラン」から課題を2～3件選び、次の表で示す。
+「生活上の課題（根拠にした入力項目）｜支援の組み合わせ｜区分（【根拠確認済み】または【AIによる組み合わせ案】）と出典｜まず相談するところ」
+【AIによる組み合わせ案】の行にはR-16(c)の注意書きを添える。【AIによる参考提案（未確認）】があれば、表の下に1～2件だけ、R-16(c)の注意書きを付けて「検討する支援の方向性」として示す。
+`;
     const exampleRule=includeExamples?`
 
 R-15【具体的なサービスの利用例】「具体的なサービスの利用例」の章は、本人・家族が知らなかった支援の選択肢に気づくための情報であり、制度の利用可否を示すものではない。次を守る。
@@ -335,7 +387,7 @@ H-例. 公開事例の出典（字数上限外。公開事例を使わなかっ�
 ━━━━━━━━━━━━━━━━━━━━
 第5部の2　簡易版の表示形式（この順番・この見出しで出力する）
 ━━━━━━━━━━━━━━━━━━━━
-今回は「簡易版」が選択されている。簡易版は調査を省略するモードではない。第1部～第4部の調査（S1～S${includeExamples?7:6}）と第5部の整理を、詳細版と同じ範囲・同じ厳密さで出力前に行い、その結果を、社会資源に詳しくない読者が最初に何を知り、どこに相談すればよいかが分かるように要約して表示する。
+今回は「簡易版」が選択されている。簡易版は調査を省略するモードではない。第1部～第4部の調査（S1～S${includeExamples?7:6}${includeCareplan?'・S8':''}）と第5部の整理を、詳細版と同じ範囲・同じ厳密さで出力前に行い、その結果を、社会資源に詳しくない読者が最初に何を知り、どこに相談すればよいかが分かるように要約して表示する。
 - 調査範囲を簡易版のために狭めない。表示する件数を絞ることと、調べる範囲を狭めることを区別する。
 - 第1部・第4部・第6部で0-A、A～G、B、B-費用、H等の章名を参照する規則は、内部の整理と、それを要約した表示の両方に適用する（例：Bの候補に課す条件は①の表の各行にも課し、Hに課す条件は${includeReferences?'⑤の各URL':'本文中の根拠リンク'}にも課す）。
 - 第5部の章立てと字数指定（0章1500字、A～G 5500字等）は内部の整理に使い、そのまま表示しない。表示の字数は下記に従う。
@@ -350,7 +402,7 @@ H-例. 公開事例の出典（字数上限外。公開事例を使わなかっ�
 ${includeExamples?`
 ② 具体的なサービスの利用例
 内部で整理した「具体的なサービスの利用例」から2～4件を選び、簡潔に示す。どのような生活場面で、どのサービスを、どう組み合わせられるかが伝わることを重視する。各例に、確認したいこと（1問）と、「公開事例（例①等。出典は${includeReferences?'⑤':'リンクで示す'}）」または「架空の利用イメージ（AIが構成した例で、実際の利用事例ではありません）」の区別を必ず添える。R-15を適用する。
-`:''}
+`:''}${includeCareplan?simpleCareplanBlock:''}
 ③ まず何をすればよいか
 内部の整理のA・Eをもとに、最初に取る行動を優先順位付きで3件程度示す。各項目に、誰が・どこへ（相談先）・何を確認／相談するかを書く。${intentAction}
 
@@ -364,7 +416,8 @@ ${includeExamples?`
 
 ${includeReferences?`⑤ 公式情報・次の調査への案内
 - ①～④で根拠にした公式ページを[n]の番号順に、「ページ名｜発信元｜完全URL｜根拠の要旨（1行）」で示す。Hの規則（本文を確認できた公式ページだけ、1番号1URL、推測したURLを載せない、「検証済み」と書かない）を適用し、各URLの後に「□URLが開く　□記載内容　□対象地域　□利用条件」を1行置く。${includeExamples?`
-- ②で公開事例を使った場合は、H-例の規則に従い、「例番号｜ページ名｜発信元｜完全URL」を[n]とは別に示す。`:''}
+- ②で公開事例を使った場合は、H-例の規則に従い、「例番号｜ページ名｜発信元｜完全URL」を[n]とは別に示す。`:''}${includeCareplan?`
+- 参考ケアプランで〔ケ①〕等を使った場合は、H-ケの規則に従い、「番号｜ページ名｜発信元｜完全URL」を[n]とは別に示す。`:''}
 - 人による最終確認が必要であり、別のAIによる確認もその代替にはならないことを1行添える。
 - 最後に次の文をそのまま書く：「気になる制度について、利用条件・費用・申請方法などをさらに詳しく調べることができます。知りたい制度名を指定して、AIに追加質問してください。」
 - 追加質問に答える場合も、第1部～第4部・第6部の規則を引き続き適用する。
@@ -381,10 +434,10 @@ H. 参照URL一覧と人による確認欄（字数上限外）
 - 各参照の直下に次の2行を置く：
 □URLが開く　□記載内容　□対象地域　□利用条件　□問い合わせ先
 確認者：＿＿　確認日：＿＿　備考：＿＿
-- 一覧を作った後、各URLと根拠本文をもう一度確認し、各参照の末尾に「AIの自己申告：最終到達ページを開いた／根拠内容の本文記載を確認した」と書く。「検証済み」とは書かない。${exampleSources}`:'';
+- 一覧を作った後、各URLと根拠本文をもう一度確認し、各参照の末尾に「AIの自己申告：最終到達ページを開いた／根拠内容の本文記載を確認した」と書く。「検証済み」とは書かない。${exampleSources}${careplanSources}`:'';
     const auditPlacement=simpleFormat
-      ?`「AI自己監査記録（AIの自己申告）」の次の${includeExamples?14:13}行は、簡易版では出力前に内部で点検し、各行を「問題なし」の一語で済ませず記載の事実を確かめる。表示は第5部の2の「自己監査（要約）」に従う。`
-      :`「AI自己監査記録（AIの自己申告）」は${includeReferences?'H':'H0'}の後・回答環境より前に置き、次の${includeExamples?14:13}行を「問題なし」の一語で済ませず、各行に記載の事実を書く。`;
+      ?`「AI自己監査記録（AIの自己申告）」の次の${auditLineCount}行は、簡易版では出力前に内部で点検し、各行を「問題なし」の一語で済ませず記載の事実を確かめる。表示は第5部の2の「自己監査（要約）」に従う。`
+      :`「AI自己監査記録（AIの自己申告）」は${includeReferences?'H':'H0'}の後・回答環境より前に置き、次の${auditLineCount}行を「問題なし」の一語で済ませず、各行に記載の事実を書く。`;
     const providerSection=staffFacing
       ?`0-B 医療機関側（最大5行。透析施設が診療費を扱う制度だけ）：「制度｜受付で確認するもの｜費用負担者｜レセプト提出先（審査支払機関）｜患者の窓口負担の考え方｜注意点」。保険者、審査支払機関、公費実施主体を区別し、「請求先」の一語で済ませない。窓口負担の金額はR-5に従う。`
       :`0-B 医療機関に確認してもらうこと（最大5行）：「制度・証｜クリニック受付に提示・確認するもの｜クリニック側に確認を依頼する事項｜注意点」。患者・家族向けなので、保険者・審査支払機関・レセプト提出先等の専門的な請求経路は詳述しない。窓口負担の金額はR-5に従う。`;
@@ -436,7 +489,7 @@ R-12【費用感】費用情報は、S5で制度・サービス候補を決め�
 
 R-13【支援者の所在】「支援者の居住地・活動拠点」の区分は位置関係だけを示す。区分の目安は、近隣＝徒歩圏などすぐ駆けつけられる範囲（市区町村をまたぐ場合を含む）、周辺の市区町村＝同一市区町村外だが日常的に行き来できる範囲、遠方＝日常的な行き来が難しい範囲であり、入力者が選んだ目安として扱う。区分から所要時間、実働頻度、送迎可能性を推定せず、実働頻度・継続可能性・支援者側の制約・実際にできる支援と組み合わせて扱う。「遠方」を支援不能と扱わず、遠方の支援者が担える支援も検討する。制度の適用地は原則として本人の居住市区町村とし、支援者の居住地が要件となる介護者向け制度は、本人の居住市区町村の公式本文で要件を確認する。支援者の居住市区町村名は入力されていないため推測せず、要件に関わる場合は確認事項とする。主な支援者が支援専門職・支援機関の場合、「周辺の市区町村」は事業所が区域外にあることを示し得るため、提供地域を確認事項とする。
 
-R-14【医療的ケア・補助具の記載】「事業所へ前もって伝えたい医療的ケア・補助具」の記載から、診断名、障害種別、手帳の種別・等級、受給資格を推定しない（R-2の対象に含む）。この記載は、(1)補装具・日常生活用具・自治体独自助成等を探索する入口、(2)訪問・通所・短期入所・送迎・入浴等の候補で、事業所に受け入れや必要な体制を事前確認する事項の提示、にだけ用いる。受け入れ可否は事業所ごとに異なるため、公式本文で確認できない限り「受け入れ不可」「利用不可」と断定せず、Dまたは各候補の不足情報に「事業所へ事前確認」として示す。補装具と介護保険の福祉用具は別制度として区別し、どちらの制度の対象かを推定しない。記載が他の入力（意思伝達、排泄、食事等）と矛盾する場合は推測で補わず、要確認とする。腹膜透析等、腎代替療法そのものに伴う受け入れ確認は「腎代替療法」の入力から扱う。${exampleRule}
+R-14【医療的ケア・補助具の記載】「事業所へ前もって伝えたい医療的ケア・補助具」の記載から、診断名、障害種別、手帳の種別・等級、受給資格を推定しない（R-2の対象に含む）。この記載は、(1)補装具・日常生活用具・自治体独自助成等を探索する入口、(2)訪問・通所・短期入所・送迎・入浴等の候補で、事業所に受け入れや必要な体制を事前確認する事項の提示、にだけ用いる。受け入れ可否は事業所ごとに異なるため、公式本文で確認できない限り「受け入れ不可」「利用不可」と断定せず、Dまたは各候補の不足情報に「事業所へ事前確認」として示す。補装具と介護保険の福祉用具は別制度として区別し、どちらの制度の対象かを推定しない。記載が他の入力（意思伝達、排泄、食事等）と矛盾する場合は推測で補わず、要確認とする。腹膜透析等、腎代替療法そのものに伴う受け入れ確認は「腎代替療法」の入力から扱う。${exampleRule}${careplanRule}
 
 ━━━━━━━━━━━━━━━━━━━━
 第2部　用語の定義（本プロンプト内では以下の意味に固定する）
@@ -490,7 +543,7 @@ S5.5【候補決定後の費用調査】S5で候補を確定した後、その�
 
 S6【確認できない場合】
 - 制度名、旧制度名、担当部署名等へ検索語を変えて公式サイト内を再検索しても公式本文を確認できなければ、H0の該当領域を「？」とする。
-- 本文を確認できなかった候補は、Hに載せず、それに依存する記述は削除するか「公式本文未確認」と書き直す。重要な候補であれば、Gに「公式本文未確認のため除外：制度名」と1行で必ず残す。${exampleStep}
+- 本文を確認できなかった候補は、Hに載せず、それに依存する記述は削除するか「公式本文未確認」と書き直す。重要な候補であれば、Gに「公式本文未確認のため除外：制度名」と1行で必ず残す。${exampleStep}${careplanStep}
 
 ━━━━━━━━━━━━━━━━━━━━
 ${formatHeading}
@@ -523,7 +576,7 @@ B-費用. 候補となった制度・サービスの費用感（Bの候補決定
 - 最後に「費用だけで利用を見送らず、軽減制度・公費・負担上限の適用を確認先へ相談してください」と1行添える。
 
 C. 短期・中期の組み合わせ案
-時期は、入力された緊急度と期日にもとづいて書く。
+時期は、入力された緊急度と期日にもとづいて書く。${careplanSection}
 
 D. 次に確認する質問（最大5問）
 本人・家族・支援者・職員に尋ねる質問。各問に「確認する理由／分かること」を添える。
@@ -554,7 +607,7 @@ ${independentReview}
 `:''}
 ${originalSection}
 
-【字数】0章は1500字以内、A～G（B-費用を含む）は合計5500字以内。0-0・H0・H・自己監査記録・回答環境・追加確認の推奨・出力対象に選ばれたIとJは上限外。同じ説明を繰り返さない。${exampleCharNote}
+【字数】0章は1500字以内、A～G（B-費用を含む）は合計5500字以内。0-0・H0・H・自己監査記録・回答環境・追加確認の推奨・出力対象に選ばれたIとJは上限外。同じ説明を繰り返さない。${exampleCharNote}${careplanCharNote}
 字数と他の指示が両立しない場合の優先順位：
 ①第1部のルールにもとづく記述（要確認、条件分岐、除外記録）は削らない
 ②0-A・0-B・B・B-費用の必須列は削らない
@@ -580,7 +633,7 @@ ${providerAudit}
 ${originalAudit}
 ⑪費用感：Bの候補決定後にだけ費用を調べ、費用で候補を削除・並べ替えしていないか。数値を示した箇所数、各数値の施行中確認・参照番号、別途費用未確認を「なし」と扱った箇所の有無、入力にない利用量・負担割合・所得区分を仮定した箇所の有無
 ⑫支援者の所在：所在区分だけから所要時間・実働頻度・送迎可能性を推定した箇所の有無（R-13）
-⑬医療的ケア・補助具：記載から診断名・障害種別・等級・資格を推定した箇所、または事業所の受け入れ可否を公式本文なしに断定した箇所の有無（R-14）${exampleAudit}
+⑬医療的ケア・補助具：記載から診断名・障害種別・等級・資格を推定した箇所、または事業所の受け入れ可否を公式本文なしに断定した箇所の有無（R-14）${exampleAudit}${careplanAudit}
 最後に「この自己監査は同じ回答生成の中で行った自己申告であり、別工程の監査ではありません。人による最終確認の代替ではありません。」と書く。
 
 ━━━━━━━━━━━━━━━━━━━━
@@ -598,7 +651,7 @@ ${originalAudit}
 - 費用調査は候補決定後に行い、費用で候補を削除・並べ替えしていないか。負担割合・所得区分・利用量を推定せず、別途費用未確認を「なし」とせず、数字の施行時点を確認したか（R-12）
 - 支援者の所在区分から所要時間・実働頻度・送迎可能性を推定していないか（R-13）
 - 医療的ケア・補助具の記載から診断名・障害種別・等級・資格を推定せず、受け入れ可否を断定していないか（R-14）
-- 現在の手段との関係を示さずに置き換えを前提にしていないか、利用状況や利用されない理由を根拠なく推測していないか（第2部・B）。${exampleFinalCheck}
+- 現在の手段との関係を示さずに置き換えを前提にしていないか、利用状況や利用されない理由を根拠なく推測していないか（第2部・B）。${exampleFinalCheck}${careplanFinalCheck}
 以上で指示は終わりです。`;
   }
   async function copyText(id,message){let copied=false;try{await navigator.clipboard.writeText($(id).value);copied=true}catch(_){$(id).select();copied=document.execCommand('copy');$(id).setSelectionRange(0,0)}$('copyStatus').className=copied?'status ok':'status bad';$('copyStatus').textContent=copied?message:'コピーできませんでした。文章を選択して手動でコピーしてください。';return copied}
@@ -652,25 +705,25 @@ ${originalAudit}
   function csvEscape(v){v=v===undefined||v===null?'':String(v);if(/^[=+\-@\t\r]/.test(v))v="'"+v;return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
   function toCsvRow(arr){return arr.map(csvEscape).join(',')}
   function csvHeaderRow(){return ['識別コード','保存日時',...conditionIds().map(id=>labels[id]),'手元で確認できた証・受給者証','その他、手元で確認できた証・受給者証','支援者が実際にできること','現在利用中のサービス','補足','重点調査領域','その他の調査リクエスト',...OUTPUT_OPTION_HEADERS]}
-  const OUTPUT_OPTION_HEADERS=['AI回答に元の質問アンケート結果を表示','AI回答に略称対応表を表示','AI回答に具体的なサービス利用例を表示','AIの回答形式','AI回答に公式情報・次の調査への案内を表示'];
-  function captureCurrentCase(){const values={};conditionIds().forEach(id=>values[id]=val(id));return {caseId:val('caseId').trim(),savedAt:nowStamp(true),values,heldCerts:checked('heldCerts'),heldCertsOther:val('heldCertsOther'),supportTasks:checked('supportTasks'),services:checked('services'),notes:val('notes'),researchDomains:checked('researchDomains'),researchRequest:val('researchRequest'),includeOriginal:$('includeOriginalInAnswer').checked,includeAbbreviations:$('includeAbbreviationsInAnswer').checked,includeUsageExamples:$('includeUsageExamples').checked,answerFormat:answerFormat(),includeReferences:$('includeReferencesInAnswer').checked}}
-  function caseToRow(c){return [c.caseId,c.savedAt,...conditionIds().map(id=>c.values[id]??''),(c.heldCerts||[]).join('；'),c.heldCertsOther||'',c.supportTasks.join('；'),c.services.join('；'),c.notes,(c.researchDomains||[]).join('；'),c.researchRequest||'',c.includeOriginal===false?'なし':'あり',c.includeAbbreviations===false?'なし':'あり',c.includeUsageExamples===false?'なし':'あり',c.answerFormat==='詳細版'?'詳細版':'簡易版',c.includeReferences===false?'なし':'あり']}
+  const OUTPUT_OPTION_HEADERS=['AI回答に元の質問アンケート結果を表示','AI回答に略称対応表を表示','AI回答に具体的なサービス利用例を表示','AIの回答形式','AI回答に公式情報・次の調査への案内を表示','AI回答に参考ケアプランを表示'];
+  function captureCurrentCase(){const values={};conditionIds().forEach(id=>values[id]=val(id));return {caseId:val('caseId').trim(),savedAt:nowStamp(true),values,heldCerts:checked('heldCerts'),heldCertsOther:val('heldCertsOther'),supportTasks:checked('supportTasks'),services:checked('services'),notes:val('notes'),researchDomains:checked('researchDomains'),researchRequest:val('researchRequest'),includeOriginal:$('includeOriginalInAnswer').checked,includeAbbreviations:$('includeAbbreviationsInAnswer').checked,includeUsageExamples:$('includeUsageExamples').checked,answerFormat:answerFormat(),includeReferences:$('includeReferencesInAnswer').checked,includeCareplan:$('includeCareplan').checked}}
+  function caseToRow(c){return [c.caseId,c.savedAt,...conditionIds().map(id=>c.values[id]??''),(c.heldCerts||[]).join('；'),c.heldCertsOther||'',c.supportTasks.join('；'),c.services.join('；'),c.notes,(c.researchDomains||[]).join('；'),c.researchRequest||'',c.includeOriginal===false?'なし':'あり',c.includeAbbreviations===false?'なし':'あり',c.includeUsageExamples===false?'なし':'あり',c.answerFormat==='詳細版'?'詳細版':'簡易版',c.includeReferences===false?'なし':'あり',c.includeCareplan===true?'あり':'なし']}
   const caseSignature=c=>toCsvRow(caseToRow(c));
   function casesToCsvText(){const ordered=[].concat(...groupedSortedCases().map(g=>g.items));const lines=[toCsvRow(csvHeaderRow()),...ordered.map(c=>toCsvRow(caseToRow(c)))];return '\uFEFF'+lines.join('\r\n')+'\r\n'}
   function parseCSV(text){text=text.replace(/^\uFEFF/,'');const rows=[];let row=[],field='',inQuotes=false;for(let i=0;i<text.length;i++){const c=text[i];if(inQuotes){if(c==='"'){if(text[i+1]==='"'){field+='"';i++}else inQuotes=false}else field+=c}else{if(c==='"')inQuotes=true;else if(c===','){row.push(field);field=''}else if(c==='\r'){if(text[i+1]!=='\n'){row.push(field);rows.push(row);row=[];field=''}}else if(c==='\n'){row.push(field);rows.push(row);row=[];field=''}else field+=c}}if(inQuotes)throw new Error('CSV_UNTERMINATED_QUOTE');if(field.length||row.length){row.push(field);rows.push(row)}return rows.filter(r=>r.some(cell=>cell!==''))}
-  function rowsToCases(rows){if(rows.length<2)return[];const header=rows[0];const idx=name=>header.indexOf(name);const caseIdIdx=idx('識別コード'),savedAtIdx=idx('保存日時');if(caseIdIdx<0||savedAtIdx<0)return[];const LEGACY={age:['年齢帯・16特定疾病との関係'],publicAssistance:['公的扶助の状況'],disability:['障害者手帳等'],transport:['現在の主な送迎']};const idIndex={};conditionIds().forEach(id=>{let i=idx(labels[id]);if(i<0&&LEGACY[id])for(const h of LEGACY[id]){i=idx(h);if(i>=0)break}idIndex[id]=i});const legacyAidIdx=idx('公費負担・医療費助成の利用状況'),legacyDistanceFormat=idx('事業所へ前もって伝えたい医療的ケア・補助具')<0,certsIdx=idx('手元で確認できた証・受給者証'),certsOtherIdx=idx('その他、手元で確認できた証・受給者証'),tasksIdx=idx('支援者が実際にできること'),servicesIdx=idx('現在利用中のサービス'),notesIdx=idx('補足'),researchDomainsIdx=idx('重点調査領域'),researchRequestIdx=idx('その他の調査リクエスト'),includeOriginalIdx=idx(OUTPUT_OPTION_HEADERS[0]),includeAbbreviationsIdx=idx(OUTPUT_OPTION_HEADERS[1]),includeUsageExamplesIdx=idx(OUTPUT_OPTION_HEADERS[2]),answerFormatIdx=idx(OUTPUT_OPTION_HEADERS[3]),includeReferencesIdx=idx(OUTPUT_OPTION_HEADERS[4]);const unq=v=>/^'[=+\-@\t\r]/.test(v)?v.slice(1):v;return rows.slice(1).map(r=>{const values={};conditionIds().forEach(id=>{const i=idIndex[id];values[id]=i>=0?unq(r[i]||''):''});const oldAge=values.age||'';if(/^40～64歳（/.test(oldAge)){values.age='40～64歳';if(!values.specifiedDisease16)values.specifiedDisease16='確認していない・分からない'}else if(oldAge==='65～74歳'){values.age='わからない・未入力'}return {caseId:unq(r[caseIdIdx]||''),savedAt:r[savedAtIdx]||'',values,heldCerts:certsIdx>=0?(r[certsIdx]||'').split('；').filter(Boolean):[],heldCertsOther:certsOtherIdx>=0?unq(r[certsOtherIdx]||''):'',supportTasks:tasksIdx>=0?(r[tasksIdx]||'').split('；').filter(Boolean):[],services:servicesIdx>=0?(r[servicesIdx]||'').split('；').filter(Boolean):[],notes:notesIdx>=0?unq(r[notesIdx]||''):'',researchDomains:researchDomainsIdx>=0?(r[researchDomainsIdx]||'').split('；').filter(Boolean):['介護保険','障害福祉','医療費助成・公費','所得保障・生活困窮','移動・透析通院','食事・服薬・家事・見守り','住居','介護者支援','就労','権利擁護','地域独自制度'],researchRequest:researchRequestIdx>=0?unq(r[researchRequestIdx]||''):'',includeOriginal:includeOriginalIdx>=0?(r[includeOriginalIdx]||'')!=='なし':true,includeAbbreviations:includeAbbreviationsIdx>=0?(r[includeAbbreviationsIdx]||'')!=='なし':true,includeUsageExamples:includeUsageExamplesIdx>=0?(r[includeUsageExamplesIdx]||'')!=='なし':true,answerFormat:answerFormatIdx>=0&&(r[answerFormatIdx]||'')==='詳細版'?'詳細版':'簡易版',legacyAnswerFormat:answerFormatIdx<0,includeReferences:includeReferencesIdx>=0?(r[includeReferencesIdx]||'')!=='なし':true,legacyReferences:includeReferencesIdx<0,legacyAid:legacyAidIdx>=0?(r[legacyAidIdx]||''):'',legacyAge65to74:oldAge==='65～74歳',legacyTransport:values.transport==='救急搬送に依存',legacyDistanceReview:legacyDistanceFormat&&values.distance==='遠方'}})}
+  function rowsToCases(rows){if(rows.length<2)return[];const header=rows[0];const idx=name=>header.indexOf(name);const caseIdIdx=idx('識別コード'),savedAtIdx=idx('保存日時');if(caseIdIdx<0||savedAtIdx<0)return[];const LEGACY={age:['年齢帯・16特定疾病との関係'],publicAssistance:['公的扶助の状況'],disability:['障害者手帳等'],transport:['現在の主な送迎']};const idIndex={};conditionIds().forEach(id=>{let i=idx(labels[id]);if(i<0&&LEGACY[id])for(const h of LEGACY[id]){i=idx(h);if(i>=0)break}idIndex[id]=i});const legacyAidIdx=idx('公費負担・医療費助成の利用状況'),legacyDistanceFormat=idx('事業所へ前もって伝えたい医療的ケア・補助具')<0,certsIdx=idx('手元で確認できた証・受給者証'),certsOtherIdx=idx('その他、手元で確認できた証・受給者証'),tasksIdx=idx('支援者が実際にできること'),servicesIdx=idx('現在利用中のサービス'),notesIdx=idx('補足'),researchDomainsIdx=idx('重点調査領域'),researchRequestIdx=idx('その他の調査リクエスト'),includeOriginalIdx=idx(OUTPUT_OPTION_HEADERS[0]),includeAbbreviationsIdx=idx(OUTPUT_OPTION_HEADERS[1]),includeUsageExamplesIdx=idx(OUTPUT_OPTION_HEADERS[2]),answerFormatIdx=idx(OUTPUT_OPTION_HEADERS[3]),includeReferencesIdx=idx(OUTPUT_OPTION_HEADERS[4]),includeCareplanIdx=idx(OUTPUT_OPTION_HEADERS[5]);const unq=v=>/^'[=+\-@\t\r]/.test(v)?v.slice(1):v;return rows.slice(1).map(r=>{const values={};conditionIds().forEach(id=>{const i=idIndex[id];values[id]=i>=0?unq(r[i]||''):''});const oldAge=values.age||'';if(/^40～64歳（/.test(oldAge)){values.age='40～64歳';if(!values.specifiedDisease16)values.specifiedDisease16='確認していない・分からない'}else if(oldAge==='65～74歳'){values.age='わからない・未入力'}return {caseId:unq(r[caseIdIdx]||''),savedAt:r[savedAtIdx]||'',values,heldCerts:certsIdx>=0?(r[certsIdx]||'').split('；').filter(Boolean):[],heldCertsOther:certsOtherIdx>=0?unq(r[certsOtherIdx]||''):'',supportTasks:tasksIdx>=0?(r[tasksIdx]||'').split('；').filter(Boolean):[],services:servicesIdx>=0?(r[servicesIdx]||'').split('；').filter(Boolean):[],notes:notesIdx>=0?unq(r[notesIdx]||''):'',researchDomains:researchDomainsIdx>=0?(r[researchDomainsIdx]||'').split('；').filter(Boolean):['介護保険','障害福祉','医療費助成・公費','所得保障・生活困窮','移動・透析通院','食事・服薬・家事・見守り','住居','介護者支援','就労','権利擁護','地域独自制度'],researchRequest:researchRequestIdx>=0?unq(r[researchRequestIdx]||''):'',includeOriginal:includeOriginalIdx>=0?(r[includeOriginalIdx]||'')!=='なし':true,includeAbbreviations:includeAbbreviationsIdx>=0?(r[includeAbbreviationsIdx]||'')!=='なし':true,includeUsageExamples:includeUsageExamplesIdx>=0?(r[includeUsageExamplesIdx]||'')!=='なし':true,answerFormat:answerFormatIdx>=0&&(r[answerFormatIdx]||'')==='詳細版'?'詳細版':'簡易版',legacyAnswerFormat:answerFormatIdx<0,includeReferences:includeReferencesIdx>=0?(r[includeReferencesIdx]||'')!=='なし':true,legacyReferences:includeReferencesIdx<0,includeCareplan:includeCareplanIdx>=0&&(r[includeCareplanIdx]||'')==='あり',legacyAid:legacyAidIdx>=0?(r[legacyAidIdx]||''):'',legacyAge65to74:oldAge==='65～74歳',legacyTransport:values.transport==='救急搬送に依存',legacyDistanceReview:legacyDistanceFormat&&values.distance==='遠方'}})}
   let savedCases=[];
   function downloadCasesCsv(){const text=casesToCsvText(),b=new Blob([text],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`case-conditions_${nowStamp()}.csv`;a.click();URL.revokeObjectURL(a.href)}
   function formatStamp(s){return s&&s.length>=12?`${s.slice(0,4)}-${s.slice(4,6)}-${s.slice(6,8)} ${s.slice(8,10)}:${s.slice(10,12)}`+(/^\d{14}$/.test(s)?`:${s.slice(12,14)}`:''):(s||'日時不明')}
   function groupedSortedCases(){const groups=new Map();const entries=[];savedCases.forEach(c=>{if(c.caseId){if(!groups.has(c.caseId))groups.set(c.caseId,[]);groups.get(c.caseId).push(c)}else entries.push({caseId:'',items:[c]})});groups.forEach((items,caseId)=>{items.sort((a,b)=>b.savedAt.localeCompare(a.savedAt));entries.push({caseId,items})});entries.sort((a,b)=>b.items[0].savedAt.localeCompare(a.items[0].savedAt));return entries}
   function resetImportPanel(){$('caseFileInput').value='';$('caseLoadStatus').className='hint';$('caseLoadStatus').textContent='';$('savedCasesList').classList.add('hidden')}
-  function applyCaseToForm(c){const defaultResearchDomains=['介護保険','障害福祉','医療費助成・公費','所得保障・生活困窮','移動・透析通院','食事・服薬・家事・見守り','住居','介護者支援','就労','権利擁護','地域独自制度'];const currentResearchDomains=checked('researchDomains');const researchScopeChanged=currentResearchDomains.length!==defaultResearchDomains.length||defaultResearchDomains.some(x=>!currentResearchDomains.includes(x));const outputOptionsChanged=!$('includeUsageExamples').checked||answerFormat()!=='簡易版'||DISPLAY_OPTION_IDS.some(id=>$(id).checked!==(answerFormat()==='詳細版'));const hasExistingInput=enteredConditionLines().length>0||val('caseId').trim()||val('researchRequest').trim()||val('heldCertsOther').trim()||researchScopeChanged||outputOptionsChanged;if(hasExistingInput&&!confirm('現在入力中の内容は保存されていません。読み込んだ条件で置き換えると、今の入力内容は失われます。続けますか？'))return;conditionIds().forEach(id=>{const el=$(id);if(!el)return;if(el.tagName==='SELECT'){let incoming=c.values[id];const has=[...el.options].some(o=>o.value===incoming);el.value=has?incoming:'わからない・未入力'}else el.value=c.values[id]||''});['heldCerts','supportTasks','services','researchDomains'].forEach(groupId=>{const list=groupId==='heldCerts'?(c.heldCerts||[]):groupId==='supportTasks'?c.supportTasks:groupId==='services'?c.services:(c.researchDomains||[]);[...$(groupId).querySelectorAll('input')].forEach(inp=>inp.checked=list.includes(inp.value))});$('notes').value=c.notes||'';$('noteCount').textContent=$('notes').value.length;$('careDevicesCount').textContent=$('careDevices').value.length;$('heldCertsOther').value=c.heldCertsOther||'';$('heldCertsOtherCount').textContent=$('heldCertsOther').value.length;$('researchRequest').value=c.researchRequest||'';$('researchRequestCount').textContent=$('researchRequest').value.length;$('caseId').value=c.caseId||'';$('includeOriginalInAnswer').checked=c.includeOriginal!==false;$('includeAbbreviationsInAnswer').checked=c.includeAbbreviations!==false;$('includeUsageExamples').checked=c.includeUsageExamples!==false;setAnswerFormat(c.answerFormat);$('includeReferencesInAnswer').checked=c.includeReferences!==false;displayOptionTouched={includeReferencesInAnswer:true,includeAbbreviationsInAnswer:true,includeOriginalInAnswer:true};updateDisabilityStatus();$('privacyConfirm').checked=false;$('consistencyConfirm').checked=false;$('consistencyBox').classList.add('hidden');updatePiiAiButton();resetImportPanel();$('piiStatus').className='status';$('piiStatus').textContent='読み込んだ条件をフォームに反映しました。個人情報が含まれていないことを、あらためて目視確認してください。'+(c.legacyAge65to74?'（旧版の年齢帯「65～74歳」は65～69歳／70～74歳を安全に判別できないため「わからない・未入力」としました。確認し直してください。）':'')+(c.legacyAid&&c.legacyAid!=='わからない・未入力'?`（旧版の「公費負担・医療費助成：${c.legacyAid}」は現在の入力欄に直接対応しないため反映していません。証・受給者証欄で確認し直してください。）`:'')+(c.legacyTransport?'（旧版の「救急搬送に依存」は現在の送迎選択肢にないため「わからない・未入力」にしました。通院手段を確認してください。）':'')+(c.legacyReferences?'（旧版のCSVには⑤の表示設定がないため、従来どおり「表示する」にしました。）':'')+(c.legacyAnswerFormat?'（旧版のCSVには回答の詳しさの列がないため、初期設定の「簡易版」にしました。必要なら「詳細版」を選び直してください。）':'')+(c.legacyDistanceReview?'（旧版の「遠方」には現在の「周辺の市区町村」に相当する場合が含まれるため、支援者の居住地・活動拠点を確認し直してください。）':'');['clinicMemo','researchPrompt'].forEach(id=>$(id).value='');if(markdownFromPrompt){$('markdownContent').value='';markdownFromPrompt=false}$('resultPanel').classList.add('hidden');$('caseForm').scrollIntoView({behavior:'smooth',block:'start'})}
+  function applyCaseToForm(c){const defaultResearchDomains=['介護保険','障害福祉','医療費助成・公費','所得保障・生活困窮','移動・透析通院','食事・服薬・家事・見守り','住居','介護者支援','就労','権利擁護','地域独自制度'];const currentResearchDomains=checked('researchDomains');const researchScopeChanged=currentResearchDomains.length!==defaultResearchDomains.length||defaultResearchDomains.some(x=>!currentResearchDomains.includes(x));const outputOptionsChanged=!$('includeUsageExamples').checked||$('includeCareplan').checked||answerFormat()!=='簡易版'||DISPLAY_OPTION_IDS.some(id=>$(id).checked!==(answerFormat()==='詳細版'));const hasExistingInput=enteredConditionLines().length>0||val('caseId').trim()||val('researchRequest').trim()||val('heldCertsOther').trim()||researchScopeChanged||outputOptionsChanged;if(hasExistingInput&&!confirm('現在入力中の内容は保存されていません。読み込んだ条件で置き換えると、今の入力内容は失われます。続けますか？'))return;conditionIds().forEach(id=>{const el=$(id);if(!el)return;if(el.tagName==='SELECT'){let incoming=c.values[id];const has=[...el.options].some(o=>o.value===incoming);el.value=has?incoming:'わからない・未入力'}else el.value=c.values[id]||''});['heldCerts','supportTasks','services','researchDomains'].forEach(groupId=>{const list=groupId==='heldCerts'?(c.heldCerts||[]):groupId==='supportTasks'?c.supportTasks:groupId==='services'?c.services:(c.researchDomains||[]);[...$(groupId).querySelectorAll('input')].forEach(inp=>inp.checked=list.includes(inp.value))});$('notes').value=c.notes||'';$('noteCount').textContent=$('notes').value.length;$('careDevicesCount').textContent=$('careDevices').value.length;$('heldCertsOther').value=c.heldCertsOther||'';$('heldCertsOtherCount').textContent=$('heldCertsOther').value.length;$('researchRequest').value=c.researchRequest||'';$('researchRequestCount').textContent=$('researchRequest').value.length;$('caseId').value=c.caseId||'';$('includeOriginalInAnswer').checked=c.includeOriginal!==false;$('includeAbbreviationsInAnswer').checked=c.includeAbbreviations!==false;$('includeUsageExamples').checked=c.includeUsageExamples!==false;$('includeCareplan').checked=c.includeCareplan===true;setAnswerFormat(c.answerFormat);$('includeReferencesInAnswer').checked=c.includeReferences!==false;displayOptionTouched={includeReferencesInAnswer:true,includeAbbreviationsInAnswer:true,includeOriginalInAnswer:true};updateDisabilityStatus();$('privacyConfirm').checked=false;$('consistencyConfirm').checked=false;$('consistencyBox').classList.add('hidden');updatePiiAiButton();resetImportPanel();$('piiStatus').className='status';$('piiStatus').textContent='読み込んだ条件をフォームに反映しました。個人情報が含まれていないことを、あらためて目視確認してください。'+(c.legacyAge65to74?'（旧版の年齢帯「65～74歳」は65～69歳／70～74歳を安全に判別できないため「わからない・未入力」としました。確認し直してください。）':'')+(c.legacyAid&&c.legacyAid!=='わからない・未入力'?`（旧版の「公費負担・医療費助成：${c.legacyAid}」は現在の入力欄に直接対応しないため反映していません。証・受給者証欄で確認し直してください。）`:'')+(c.legacyTransport?'（旧版の「救急搬送に依存」は現在の送迎選択肢にないため「わからない・未入力」にしました。通院手段を確認してください。）':'')+(c.legacyReferences?'（旧版のCSVには⑤の表示設定がないため、従来どおり「表示する」にしました。）':'')+(c.legacyAnswerFormat?'（旧版のCSVには回答の詳しさの列がないため、初期設定の「簡易版」にしました。必要なら「詳細版」を選び直してください。）':'')+(c.legacyDistanceReview?'（旧版の「遠方」には現在の「周辺の市区町村」に相当する場合が含まれるため、支援者の居住地・活動拠点を確認し直してください。）':'');['clinicMemo','researchPrompt'].forEach(id=>$(id).value='');if(markdownFromPrompt){$('markdownContent').value='';markdownFromPrompt=false}$('resultPanel').classList.add('hidden');$('caseForm').scrollIntoView({behavior:'smooth',block:'start'})}
   function refreshSavedCasesList(){const container=$('savedCasesList');const entries=groupedSortedCases();container.classList.toggle('hidden',!entries.length);container.replaceChildren(...entries.map(group=>{const box=document.createElement('div');box.className='case-group';const title=document.createElement('div');title.className='case-group-title';title.textContent=group.caseId?`識別コード：${group.caseId}（${group.items.length}件）`:'識別コードなし';box.appendChild(title);group.items.forEach((c,i)=>{const row=document.createElement('div');row.className='case-item';const label=document.createElement('span');label.textContent=formatStamp(c.savedAt)+(i===0&&group.caseId?'（最新）':'');const btn=document.createElement('button');btn.type='button';btn.className='btn secondary';btn.textContent='この条件を呼び出す';btn.addEventListener('click',()=>applyCaseToForm(c));row.append(label,btn);box.appendChild(row)});return box}))}
   function saveCase(){if(!passesSafetyGate(false))return;savedCases.push(captureCurrentCase());downloadCasesCsv();refreshSavedCasesList();$('piiStatus').className='status ok';$('piiStatus').textContent='条件をCSVファイルへ保存しました。ダウンロードされたファイルを台帳として保管し、以前の版は置き換えてください（ブラウザの制約上、保存のたびに新しいファイルとしてダウンロードされ、既存ファイルへの上書きはできません）。'}
   $('saveCaseBtn').addEventListener('click',saveCase);
   $('caseFileInput').addEventListener('change',async(e)=>{const file=e.target.files&&e.target.files[0];if(!file)return;try{const text=await file.text();const loaded=rowsToCases(parseCSV(text));if(!loaded.length){$('caseLoadStatus').className='status bad';$('caseLoadStatus').textContent='読み込めるデータが見つかりませんでした。このツールの「入力条件をCSV形式で保存」で書き出したCSVファイルを選択してください。'}else{const existingKeys=new Set(savedCases.map(caseSignature));const newOnes=loaded.filter(c=>{const key=caseSignature(c);if(existingKeys.has(key))return false;existingKeys.add(key);return true});const dupCount=loaded.length-newOnes.length;savedCases=savedCases.concat(newOnes);refreshSavedCasesList();$('caseLoadStatus').className='status ok';$('caseLoadStatus').textContent=dupCount?`${newOnes.length}件の条件を読み込みました（${dupCount}件は読み込み済みと同一のため除外しました）。下の一覧から呼び出す症例を選んでください。`:`${newOnes.length}件の条件を読み込みました。下の一覧から呼び出す症例を選んでください。`}}catch(err){$('caseLoadStatus').className='status bad';$('caseLoadStatus').textContent=err&&err.message==='CSV_UNTERMINATED_QUOTE'?'引用符（"）が閉じていない箇所があるため、読み込みを中止しました。ファイルが途中で編集・破損していないか確認してください。':'ファイルを読み込めませんでした。CSV形式を確認してください。'}e.target.value=''});
   $('copyResearchBtn').addEventListener('click',async()=>{if(!val('researchPrompt'))return;const copied=await copyText('researchPrompt','AIチャット相談文をコピーしました。');if(!copied)return;if(val('markdownContent')&&val('markdownContent')!==val('researchPrompt')&&!confirm('Markdownの確認欄に保存前の内容があります。相談文で置き換えますか？'))return;setMarkdownDraft(val('researchPrompt'),true)});
   $('printBtn').addEventListener('click',()=>window.print());
-  $('resetBtn').addEventListener('click',()=>{if(!confirm(savedCases.length?`入力内容をすべて消去しますか？\n（読み込み・保存済みの条件一覧${savedCases.length}件は台帳として残り、次回の「入力条件をCSV形式で保存」にも含まれます。）`:'入力内容をすべて消去しますか？'))return;$('caseForm').reset();$('privacyConfirm').checked=false;$('consistencyConfirm').checked=false;$('consistencyBox').classList.add('hidden');initializeUnknowns();updateDisabilityStatus();['notes','researchRequest','heldCertsOther','clinicMemo','researchPrompt','markdownContent','markdownFilename'].forEach(id=>$(id).value='');[...$('researchDomains').querySelectorAll('input')].forEach(input=>input.checked=true);$('includeUsageExamples').checked=true;setAnswerFormat('簡易版');displayOptionTouched={};applyDisplayDefaults();markdownFromPrompt=false;$('markdownDetails').open=false;$('markdownStatus').textContent='';$('noteCount').textContent='0';$('researchRequestCount').textContent='0';$('heldCertsOtherCount').textContent='0';$('careDevicesCount').textContent='0';$('piiStatus').textContent='';$('resultPanel').classList.add('hidden');updatePiiAiButton();document.querySelectorAll('.steps li').forEach((x,i)=>x.classList.toggle('active',i===0));window.scrollTo({top:0,behavior:'smooth'})});
+  $('resetBtn').addEventListener('click',()=>{if(!confirm(savedCases.length?`入力内容をすべて消去しますか？\n（読み込み・保存済みの条件一覧${savedCases.length}件は台帳として残り、次回の「入力条件をCSV形式で保存」にも含まれます。）`:'入力内容をすべて消去しますか？'))return;$('caseForm').reset();$('privacyConfirm').checked=false;$('consistencyConfirm').checked=false;$('consistencyBox').classList.add('hidden');initializeUnknowns();updateDisabilityStatus();['notes','researchRequest','heldCertsOther','clinicMemo','researchPrompt','markdownContent','markdownFilename'].forEach(id=>$(id).value='');[...$('researchDomains').querySelectorAll('input')].forEach(input=>input.checked=true);$('includeUsageExamples').checked=true;$('includeCareplan').checked=false;setAnswerFormat('簡易版');displayOptionTouched={};applyDisplayDefaults();markdownFromPrompt=false;$('markdownDetails').open=false;$('markdownStatus').textContent='';$('noteCount').textContent='0';$('researchRequestCount').textContent='0';$('heldCertsOtherCount').textContent='0';$('careDevicesCount').textContent='0';$('piiStatus').textContent='';$('resultPanel').classList.add('hidden');updatePiiAiButton();document.querySelectorAll('.steps li').forEach((x,i)=>x.classList.toggle('active',i===0));window.scrollTo({top:0,behavior:'smooth'})});
 </script>
 </body></html>
